@@ -1,0 +1,108 @@
+﻿<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vista Externa | Gestion Curricular USMP FIA</title>
+  <link rel="icon" type="image/png" href="./logousmp.png?v=3">
+  <link rel="shortcut icon" type="image/png" href="./logousmp.png?v=3">
+  <link rel="apple-touch-icon" href="./logousmp.png?v=3">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="./assets/css/styles.css?v=4">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <img class="brand-mark" src="./logousmp.png" alt="Logo USMP FIA">
+        <div>
+          <h1 class="page-title">Gestion Curricular USMP FIA</h1>
+          <p class="page-subtitle">Vista externa de consulta del proceso PC01</p>
+        </div>
+      </div>
+      <div class="readonly-pill">Solo lectura - Datos publicos</div>
+    </div>
+  </header>
+
+  <main class="page">
+    <section id="connectionAlert" class="alert">
+      <strong>Conexion:</strong>
+      <span id="connectionMessage">Preparando consulta.</span>
+    </section>
+
+    <section class="metrics" aria-label="Indicadores principales">
+      <article class="metric">
+        <div class="metric-label">Expedientes</div>
+        <div id="metricTotal" class="metric-value">0</div>
+        <div class="metric-caption">Procesos curriculares registrados</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">Avance promedio</div>
+        <div id="metricProgress" class="metric-value">0%</div>
+        <div class="metric-caption">Segun historial de fases</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">Observados</div>
+        <div id="metricObserved" class="metric-value">0</div>
+        <div class="metric-caption">Requieren atencion</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">Feedback promedio</div>
+        <div id="metricFeedback" class="metric-value">0.0</div>
+        <div class="metric-caption">Escala 1 a 5</div>
+      </article>
+    </section>
+
+    <section class="filters" aria-label="Filtros">
+      <div class="field">
+        <label for="searchInput">Busqueda</label>
+        <input id="searchInput" type="search" placeholder="Buscar carrera, motivo, observacion, curso o evidencia">
+      </div>
+      <div class="field">
+        <label for="filterPeriod">Periodo</label>
+        <select id="filterPeriod"></select>
+      </div>
+      <div class="field">
+        <label for="filterCareer">Carrera</label>
+        <select id="filterCareer"></select>
+      </div>
+      <div class="field">
+        <label for="filterStatus">Estado</label>
+        <select id="filterStatus"></select>
+      </div>
+      <button id="clearFilters" class="btn" type="button">Limpiar</button>
+    </section>
+
+    <section class="layout">
+      <aside class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Expedientes</h2>
+          <span id="resultCount" class="panel-note">0 resultados</span>
+        </div>
+        <div id="processList" class="process-list"></div>
+      </aside>
+
+      <section class="panel detail">
+        <div id="detailContent"></div>
+      </section>
+    </section>
+
+    <section class="panel support-section">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Datos de soporte</h2>
+          <div class="panel-note">Tablas publicas de consulta, sin edicion</div>
+        </div>
+      </div>
+      <div id="supportTabs" class="support-tabs"></div>
+      <div id="supportContent" class="tab-panel is-active"></div>
+    </section>
+  </main>
+  <script src="./assets/js/app.js?v=4"></script>
+</body>
+</html>
+
