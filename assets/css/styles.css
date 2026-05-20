@@ -527,6 +527,75 @@
       gap: 12px;
     }
 
+    .timeline-compact {
+      display: grid;
+      gap: 12px;
+    }
+
+    .timeline-stepper {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(58px, 1fr));
+      gap: 7px;
+      overflow-x: auto;
+      padding: 2px 2px 10px;
+      scrollbar-width: thin;
+    }
+
+    .step-chip {
+      min-height: 58px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 3px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .step-chip span {
+      width: 26px;
+      height: 26px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #eef2f7;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .step-chip small {
+      max-width: 100%;
+      overflow: hidden;
+      color: inherit;
+      font-size: 10px;
+      font-weight: 800;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .step-chip.is-registered span {
+      background: #dff7e9;
+      color: #0f6b3b;
+    }
+
+    .step-chip.is-missing {
+      border-style: dashed;
+      background: #fbfcff;
+    }
+
+    .step-chip.is-active {
+      border-color: rgba(178, 34, 34, 0.58);
+      box-shadow: 0 8px 18px rgba(178, 34, 34, 0.12);
+      color: var(--usmp-red-strong);
+    }
+
+    .step-chip.is-active span {
+      background: rgba(178, 34, 34, 0.11);
+      color: var(--usmp-red-strong);
+    }
+
     .timeline-item {
       display: grid;
       grid-template-columns: 58px minmax(0, 1fr);
@@ -535,6 +604,10 @@
       border: 1px solid var(--line);
       border-radius: var(--radius);
       background: #fff;
+    }
+
+    .timeline-focus {
+      min-height: 156px;
     }
 
     .timeline-item.is-missing {
@@ -948,6 +1021,10 @@
 
       .timeline-item {
         grid-template-columns: 1fr;
+      }
+
+      .timeline-stepper {
+        grid-template-columns: repeat(12, 68px);
       }
 
       .form-grid {

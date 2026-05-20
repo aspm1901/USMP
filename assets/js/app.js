@@ -27,6 +27,7 @@
       filtered: [],
       selectedId: null,
       activeDetailTab: 'timeline',
+      selectedTimelineStep: {},
       activeSupport: 'courses',
       user: null,
       isAdmin: false
@@ -324,6 +325,7 @@
         button.addEventListener('click', () => {
           state.selectedId = Number(button.dataset.processId);
           state.activeDetailTab = 'timeline';
+          state.selectedTimelineStep[state.selectedId] = getDefaultTimelineStep(state.processes.find((item) => item.id === state.selectedId));
           renderProcessList();
           renderDetail();
         });
@@ -408,6 +410,13 @@
         });
       });
 
+      document.querySelectorAll('[data-timeline-step]').forEach((button) => {
+        button.addEventListener('click', () => {
+          state.selectedTimelineStep[item.id] = Number(button.dataset.timelineStep);
+          renderDetail();
+        });
+      });
+
       bindAdminActionButtons();
     }
 
@@ -443,10 +452,28 @@
     }
 
     function timelineTemplate(item) {
+      const selectedStep = state.selectedTimelineStep[item.id] || getDefaultTimelineStep(item);
+      const selected = item.fullTimeline.find(({ step }) => step.id_paso === selectedStep) || item.fullTimeline[0];
+
       return `
-        <div class="timeline">
-          ${item.fullTimeline.map(({ step, entry, extraEntries }) => `
-            <article class="timeline-item${entry ? '' : ' is-missing'}">
+        <div class="timeline-compact">
+          <div class="timeline-stepper" aria-label="Pasos del proceso PC01">
+            ${item.fullTimeline.map(({ step, entry }) => `
+              <button class="step-chip${step.id_paso === selected.step.id_paso ? ' is-active' : ''}${entry ? ' is-registered' : ' is-missing'}" type="button" data-timeline-step="${step.id_paso}" title="${escapeHtml(step.descripcion_paso || '')}">
+                <span>${step.numero_paso}</span>
+                <small>${entry ? entry.estado_fase : 'Sin registro'}</small>
+              </button>
+            `).join('')}
+          </div>
+          <article class="timeline-item timeline-focus${selected.entry ? '' : ' is-missing'}">
+            ${timelineEntryTemplate(item, selected.step, selected.entry, selected.extraEntries)}
+          </article>
+        </div>
+      `;
+    }
+
+    function timelineEntryTemplate(item, step, entry, extraEntries) {
+      return `
               <div class="step-number">${step.numero_paso}</div>
               <div>
                 <h3 class="timeline-title">${escapeHtml(step.descripcion_paso || 'Paso sin descripcion')}</h3>
@@ -466,10 +493,14 @@
                     : `<button class="mini-button" type="button" data-admin-action="add-history" data-process-id="${item.id}" data-step-id="${step.id_paso}">Registrar fase</button>`}
                 </div>
               </div>
-            </article>
-          `).join('')}
-        </div>
       `;
+    }
+
+    function getDefaultTimelineStep(item) {
+      if (!item?.fullTimeline?.length) return null;
+      const latestStepId = item.latest?.id_paso;
+      if (latestStepId) return latestStepId;
+      return item.fullTimeline[0].step.id_paso;
     }
 
     function plansTemplate(item) {
