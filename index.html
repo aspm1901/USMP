@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="./assets/css/styles.css?v=4">
+  <link rel="stylesheet" href="./assets/css/styles.css?v=5">
 </head>
 <body>
   <header class="topbar">
@@ -24,7 +24,11 @@
           <p class="page-subtitle">Vista externa de consulta del proceso PC01</p>
         </div>
       </div>
-      <div class="readonly-pill">Solo lectura - Datos publicos</div>
+      <div class="session-actions">
+        <div id="sessionBadge" class="readonly-pill">Invitado - Solo lectura</div>
+        <button id="loginButton" class="btn btn-light" type="button">Admin</button>
+        <button id="logoutButton" class="btn btn-light is-hidden" type="button">Cerrar sesion</button>
+      </div>
     </div>
   </header>
 
@@ -102,7 +106,21 @@
       <div id="supportContent" class="tab-panel is-active"></div>
     </section>
   </main>
-  <script src="./assets/js/app.js?v=4"></script>
+
+  <div id="modalOverlay" class="modal-overlay" aria-hidden="true">
+    <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-header">
+        <div>
+          <h2 id="modalTitle" class="modal-title">Formulario</h2>
+          <p id="modalSubtitle" class="modal-subtitle"></p>
+        </div>
+        <button id="modalClose" class="icon-button" type="button" aria-label="Cerrar">X</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+    </section>
+  </div>
+
+  <script src="./assets/js/app.js?v=5"></script>
 </body>
 </html>
 

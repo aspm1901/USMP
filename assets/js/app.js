@@ -21,12 +21,103 @@
     };
 
     const state = {
+      client: null,
       data: null,
       processes: [],
       filtered: [],
       selectedId: null,
       activeDetailTab: 'timeline',
-      activeSupport: 'courses'
+      activeSupport: 'courses',
+      user: null,
+      isAdmin: false
+    };
+
+    const EDIT_CONFIG = {
+      processes: {
+        table: TABLES.processes,
+        label: 'expediente',
+        pk: 'id_proceso',
+        fields: [
+          { name: 'id_plan_evaluado', label: 'Plan evaluado', type: 'select', source: 'plans', value: 'id_plan', text: planLabel },
+          { name: 'id_plan_nuevo', label: 'Plan nuevo', type: 'select', source: 'plans', value: 'id_plan', text: planLabel },
+          { name: 'id_periodo', label: 'Periodo', type: 'select', source: 'periods', value: 'id_periodo', text: (item) => item.nombre_periodo },
+          { name: 'fecha_inicio', label: 'Fecha inicio', type: 'date' },
+          { name: 'estado_proceso', label: 'Estado', type: 'select-static', options: ['En Curso', 'Observado', 'Finalizado'] },
+          { name: 'motivo_revision', label: 'Motivo de revision', type: 'textarea' }
+        ]
+      },
+      history: {
+        table: TABLES.history,
+        label: 'fase',
+        pk: 'id_historial',
+        fields: [
+          { name: 'id_proceso', label: 'Expediente', type: 'select', source: 'processes', value: 'id_proceso', text: processOptionLabel },
+          { name: 'id_paso', label: 'Paso PC01', type: 'select', source: 'steps', value: 'id_paso', text: (item) => `${item.numero_paso}. ${item.descripcion_paso}` },
+          { name: 'id_actor', label: 'Actor', type: 'select', source: 'actors', value: 'id_actor', text: (item) => `${item.siglas} - ${item.nombre_dependencia}` },
+          { name: 'fecha_ejecucion', label: 'Fecha ejecucion', type: 'date' },
+          { name: 'estado_fase', label: 'Estado fase', type: 'select-static', options: ['Aprobado', 'Observado', 'En Curso', 'Finalizado'] },
+          { name: 'observaciones_revision', label: 'Observaciones', type: 'textarea' }
+        ]
+      },
+      evidence: {
+        table: TABLES.evidence,
+        label: 'evidencia',
+        pk: 'id_evidencia',
+        fields: [
+          { name: 'id_historial', label: 'Fase historica', type: 'select', source: 'history', value: 'id_historial', text: historyOptionLabel },
+          { name: 'tipo_documento', label: 'Tipo documento', type: 'text' },
+          { name: 'ruta_archivo_pdf', label: 'Ruta archivo PDF', type: 'text' },
+          { name: 'fecha_carga', label: 'Fecha carga', type: 'datetime-local' }
+        ]
+      },
+      plans: {
+        table: TABLES.plans,
+        label: 'plan de estudio',
+        pk: 'id_plan',
+        fields: [
+          { name: 'anio_version', label: 'Anio version', type: 'number' },
+          { name: 'nombre_carrera', label: 'Carrera', type: 'text' },
+          { name: 'total_creditos_requeridos', label: 'Creditos requeridos', type: 'number' },
+          { name: 'estado', label: 'Estado', type: 'select-static', options: ['Historico', 'Vigente', 'En Revision', 'Propuesta'] }
+        ]
+      },
+      courses: {
+        table: TABLES.courses,
+        label: 'curso',
+        pk: 'id_curso',
+        fields: [
+          { name: 'id_plan', label: 'Plan', type: 'select', source: 'plans', value: 'id_plan', text: planLabel },
+          { name: 'id_area', label: 'Area', type: 'select', source: 'areas', value: 'id_area', text: (item) => item.nombre_area },
+          { name: 'id_ciclo', label: 'Ciclo', type: 'select', source: 'cycles', value: 'id_ciclo', text: (item) => `${item.numero_ciclo}. ${item.denominacion}` },
+          { name: 'codigo_curso', label: 'Codigo', type: 'text' },
+          { name: 'nombre', label: 'Nombre', type: 'text' },
+          { name: 'creditos', label: 'Creditos', type: 'number' },
+          { name: 'modalidad', label: 'Modalidad', type: 'select-static', options: ['Presencial', 'Semipresencial', 'Virtual'] }
+        ]
+      },
+      answers: {
+        table: TABLES.answers,
+        label: 'respuesta de encuesta',
+        pk: 'id_respuesta',
+        fields: [
+          { name: 'id_pregunta', label: 'Pregunta', type: 'select', source: 'questions', value: 'id_pregunta', text: (item) => `${item.categoria} - ${item.texto_pregunta}` },
+          { name: 'id_plan', label: 'Plan', type: 'select', source: 'plans', value: 'id_plan', text: planLabel },
+          { name: 'id_poblacion', label: 'Poblacion', type: 'select', source: 'populations', value: 'id_poblacion', text: (item) => item.tipo_poblacion },
+          { name: 'valor_respuesta', label: 'Valor respuesta', type: 'number', min: 1, max: 5 },
+          { name: 'comentario', label: 'Comentario', type: 'textarea' },
+          { name: 'fecha_respuesta', label: 'Fecha respuesta', type: 'datetime-local' }
+        ]
+      },
+      prerequisites: {
+        table: TABLES.prerequisites,
+        label: 'prerrequisito',
+        pk: ['id_curso_objetivo', 'id_curso_previo'],
+        fields: [
+          { name: 'id_curso_objetivo', label: 'Curso objetivo', type: 'select', source: 'courses', value: 'id_curso', text: courseOptionLabel },
+          { name: 'id_curso_previo', label: 'Curso previo', type: 'select', source: 'courses', value: 'id_curso', text: courseOptionLabel },
+          { name: 'comentarios_regla', label: 'Regla', type: 'textarea' }
+        ]
+      }
     };
 
     document.addEventListener('DOMContentLoaded', init);
@@ -36,18 +127,40 @@
       showConnectionMessage('Cargando informacion desde Supabase...');
 
       try {
-        const client = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
-        state.data = await loadReadOnlyData(client);
-        state.processes = buildProcesses(state.data);
-        state.filtered = state.processes;
-        state.selectedId = state.processes[0]?.id || null;
-        hideConnectionMessage();
-        populateFilters();
-        render();
+        state.client = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+        await syncSession();
+        await refreshData();
+        state.client.auth.onAuthStateChange(async (_event, session) => {
+          state.user = session?.user || null;
+          state.isAdmin = Boolean(state.user);
+          updateSessionUI();
+          render();
+        });
       } catch (error) {
         console.error(error);
         showConnectionMessage('No se pudo consultar Supabase. Revisa permisos SELECT, red o nombres de tablas.');
       }
+    }
+
+    async function syncSession() {
+      const { data, error } = await state.client.auth.getSession();
+      if (error) throw error;
+      state.user = data.session?.user || null;
+      state.isAdmin = Boolean(state.user);
+      updateSessionUI();
+    }
+
+    async function refreshData() {
+      const previousSelectedId = state.selectedId;
+      state.data = await loadReadOnlyData(state.client);
+      state.processes = buildProcesses(state.data);
+      state.filtered = state.processes;
+      state.selectedId = state.processes.some((item) => item.id === previousSelectedId)
+        ? previousSelectedId
+        : state.processes[0]?.id || null;
+      hideConnectionMessage();
+      populateFilters();
+      render();
     }
 
     async function loadReadOnlyData(client) {
@@ -66,6 +179,12 @@
       document.getElementById('filterCareer').addEventListener('change', applyFilters);
       document.getElementById('filterStatus').addEventListener('change', applyFilters);
       document.getElementById('clearFilters').addEventListener('click', clearFilters);
+      document.getElementById('loginButton').addEventListener('click', openLoginModal);
+      document.getElementById('logoutButton').addEventListener('click', signOut);
+      document.getElementById('modalClose').addEventListener('click', closeModal);
+      document.getElementById('modalOverlay').addEventListener('click', (event) => {
+        if (event.target.id === 'modalOverlay') closeModal();
+      });
     }
 
     function buildProcesses(data) {
@@ -177,6 +296,7 @@
     }
 
     function render() {
+      document.body.classList.toggle('admin-mode', state.isAdmin);
       renderMetrics();
       renderProcessList();
       renderDetail();
@@ -249,6 +369,12 @@
             <div>
               <h2>${escapeHtml(item.career)}</h2>
               <p class="reason">${escapeHtml(item.raw.motivo_revision || 'Sin motivo registrado.')}</p>
+              <div class="admin-actions">
+                <button class="mini-button" type="button" data-admin-action="edit-process" data-id="${item.id}">Editar expediente</button>
+                <button class="mini-button danger" type="button" data-admin-action="delete-process" data-id="${item.id}">Eliminar expediente</button>
+                <button class="mini-button" type="button" data-admin-action="add-history" data-process-id="${item.id}">Agregar fase</button>
+                <button class="mini-button" type="button" data-admin-action="add-evidence">Agregar evidencia</button>
+              </div>
             </div>
             ${statusBadge(item.status)}
           </div>
@@ -281,6 +407,8 @@
           renderDetail();
         });
       });
+
+      bindAdminActionButtons();
     }
 
     function detailTabButton(id, label) {
@@ -331,6 +459,12 @@
                 <div class="timeline-note">${escapeHtml(entry?.observaciones_revision || 'Este paso aun no tiene registro en historial_fase para este expediente.')}</div>
                 ${entry?.evidence?.length ? `<div class="timeline-meta">${entry.evidence.map((doc) => `<span>${escapeHtml(doc.tipo_documento)} - ${escapeHtml(doc.ruta_archivo_pdf)}</span>`).join('')}</div>` : ''}
                 ${extraEntries.length ? `<div class="timeline-meta"><span>${extraEntries.length} registro(s) adicional(es) en este paso</span></div>` : ''}
+                <div class="admin-actions">
+                  ${entry
+                    ? `<button class="mini-button" type="button" data-admin-action="edit-history" data-id="${entry.id_historial}">Editar fase</button>
+                       <button class="mini-button danger" type="button" data-admin-action="delete-history" data-id="${entry.id_historial}">Eliminar fase</button>`
+                    : `<button class="mini-button" type="button" data-admin-action="add-history" data-process-id="${item.id}" data-step-id="${step.id_paso}">Registrar fase</button>`}
+                </div>
               </div>
             </article>
           `).join('')}
@@ -389,6 +523,10 @@
             <span>${escapeHtml(areaName(course.id_area))}</span>
             <span>${course.creditos} creditos</span>
             <span>${escapeHtml(course.modalidad)}</span>
+          </div>
+          <div class="admin-actions">
+            <button class="mini-button" type="button" data-admin-action="edit-course" data-id="${course.id_curso}">Editar curso</button>
+            <button class="mini-button danger" type="button" data-admin-action="delete-course" data-id="${course.id_curso}">Eliminar curso</button>
           </div>
         </article>
       `;
@@ -454,6 +592,10 @@
                   <span>Paso ${escapeHtml(step?.numero_paso || '-')}</span>
                 </div>
                 <div class="timeline-note">${escapeHtml(doc.ruta_archivo_pdf)}</div>
+                <div class="admin-actions">
+                  <button class="mini-button" type="button" data-admin-action="edit-evidence" data-id="${doc.id_evidencia}">Editar evidencia</button>
+                  <button class="mini-button danger" type="button" data-admin-action="delete-evidence" data-id="${doc.id_evidencia}">Eliminar evidencia</button>
+                </div>
               </article>
             `;
           }).join('')}
@@ -477,7 +619,7 @@
       }).join('');
 
       const active = supports.find(([id]) => id === state.activeSupport) || supports[0];
-      document.getElementById('supportContent').innerHTML = active[2];
+      document.getElementById('supportContent').innerHTML = adminToolbarForSupport(active[0]) + active[2];
 
       document.querySelectorAll('[data-support-tab]').forEach((button) => {
         button.addEventListener('click', () => {
@@ -485,6 +627,26 @@
           renderSupport();
         });
       });
+
+      bindAdminActionButtons();
+    }
+
+    function adminToolbarForSupport(activeSupport) {
+      const actionBySupport = {
+        plans: ['plans', 'Agregar plan'],
+        courses: ['courses', 'Agregar curso'],
+        answers: ['answers', 'Agregar respuesta'],
+        prerequisites: ['prerequisites', 'Agregar prerrequisito'],
+        evidence: ['evidence', 'Agregar evidencia']
+      };
+      const action = actionBySupport[activeSupport];
+      if (!action) return '<div class="admin-toolbar"><span class="mini muted">Catalogos en modo consulta</span></div>';
+
+      return `
+        <div class="admin-toolbar">
+          <button class="mini-button" type="button" data-admin-action="add-record" data-table-key="${action[0]}">${action[1]}</button>
+        </div>
+      `;
     }
 
     function supportPlans() {
@@ -493,9 +655,10 @@
         version: plan.anio_version,
         carrera: plan.nombre_carrera,
         creditos: plan.total_creditos_requeridos,
-        estado: plan.estado
+        estado: plan.estado,
+        _record: plan
       }));
-      return simpleTable(rows, ['id', 'version', 'carrera', 'creditos', 'estado']);
+      return editableTable(rows, ['id', 'version', 'carrera', 'creditos', 'estado'], 'plans');
     }
 
     function supportCourses() {
@@ -506,9 +669,10 @@
         area: areaName(course.id_area),
         ciclo: state.data.cycles.find((cycle) => cycle.id_ciclo === course.id_ciclo)?.denominacion || course.id_ciclo,
         creditos: course.creditos,
-        modalidad: course.modalidad
+        modalidad: course.modalidad,
+        _record: course
       }));
-      return simpleTable(rows, ['codigo', 'curso', 'plan', 'area', 'ciclo', 'creditos', 'modalidad']);
+      return editableTable(rows, ['codigo', 'curso', 'plan', 'area', 'ciclo', 'creditos', 'modalidad'], 'courses');
     }
 
     function supportAnswers() {
@@ -521,9 +685,10 @@
         poblacion: populations.get(answer.id_poblacion)?.tipo_poblacion || '-',
         categoria: questions.get(answer.id_pregunta)?.categoria || '-',
         puntaje: `${answer.valor_respuesta}/5`,
-        comentario: answer.comentario
+        comentario: answer.comentario,
+        _record: answer
       }));
-      return simpleTable(rows, ['fecha', 'plan', 'poblacion', 'categoria', 'puntaje', 'comentario']);
+      return editableTable(rows, ['fecha', 'plan', 'poblacion', 'categoria', 'puntaje', 'comentario'], 'answers');
     }
 
     function supportPrerequisites() {
@@ -531,9 +696,10 @@
       const rows = state.data.prerequisites.map((item) => ({
         curso: courses.get(item.id_curso_objetivo)?.nombre || item.id_curso_objetivo,
         requisito: courses.get(item.id_curso_previo)?.nombre || item.id_curso_previo,
-        regla: item.comentarios_regla
+        regla: item.comentarios_regla,
+        _record: item
       }));
-      return simpleTable(rows, ['curso', 'requisito', 'regla']);
+      return editableTable(rows, ['curso', 'requisito', 'regla'], 'prerequisites');
     }
 
     function supportEvidence() {
@@ -547,10 +713,11 @@
           expediente: entry ? `PC01-${entry.id_proceso}` : '-',
           paso: step ? `${step.numero_paso}. ${step.descripcion_paso}` : '-',
           ruta: doc.ruta_archivo_pdf,
-          carga: formatDate(doc.fecha_carga)
+          carga: formatDate(doc.fecha_carga),
+          _record: doc
         };
       });
-      return simpleTable(rows, ['documento', 'expediente', 'paso', 'ruta', 'carga']);
+      return editableTable(rows, ['documento', 'expediente', 'paso', 'ruta', 'carga'], 'evidence');
     }
 
     function supportCatalogs() {
@@ -591,6 +758,326 @@
           </table>
         </div>
       `;
+    }
+
+    function editableTable(rows, columns, tableKey) {
+      if (!rows.length) return emptyTemplate('Sin registros para mostrar.');
+      const config = EDIT_CONFIG[tableKey];
+
+      return `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                ${columns.map((column) => `<th>${escapeHtml(labelize(column))}</th>`).join('')}
+                <th class="admin-only">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map((row) => {
+                const recordId = encodeRecordId(config, row._record);
+                return `
+                  <tr>
+                    ${columns.map((column) => `<td>${escapeHtml(row[column] ?? '-')}</td>`).join('')}
+                    <td class="action-cell admin-only">
+                      <button class="mini-button" type="button" data-admin-action="edit-record" data-table-key="${tableKey}" data-record-id="${escapeHtml(recordId)}">Editar</button>
+                      <button class="mini-button danger" type="button" data-admin-action="delete-record" data-table-key="${tableKey}" data-record-id="${escapeHtml(recordId)}">Eliminar</button>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function updateSessionUI() {
+      document.getElementById('sessionBadge').textContent = state.isAdmin
+        ? `Admin - ${state.user.email}`
+        : 'Invitado - Solo lectura';
+      document.getElementById('loginButton').classList.toggle('is-hidden', state.isAdmin);
+      document.getElementById('logoutButton').classList.toggle('is-hidden', !state.isAdmin);
+      document.body.classList.toggle('admin-mode', state.isAdmin);
+    }
+
+    function openLoginModal() {
+      openModal('Acceso administrador', 'Ingresa con la cuenta creada en Supabase Auth.', `
+        <form id="loginForm">
+          <div class="form-grid">
+            <div class="field wide">
+              <label for="adminEmail">Correo</label>
+              <input id="adminEmail" name="email" type="email" autocomplete="username" required>
+            </div>
+            <div class="field wide">
+              <label for="adminPassword">Clave</label>
+              <input id="adminPassword" name="password" type="password" autocomplete="current-password" required>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="mini-button" type="button" data-close-modal>Cancelar</button>
+            <button class="btn" type="submit">Entrar</button>
+          </div>
+        </form>
+      `);
+
+      document.getElementById('loginForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        const { error } = await state.client.auth.signInWithPassword({
+          email: form.get('email'),
+          password: form.get('password')
+        });
+        if (error) {
+          showConnectionMessage(`No se pudo iniciar sesion: ${error.message}`);
+          return;
+        }
+        closeModal();
+      });
+    }
+
+    async function signOut() {
+      await state.client.auth.signOut();
+      state.user = null;
+      state.isAdmin = false;
+      updateSessionUI();
+      render();
+    }
+
+    function bindAdminActionButtons() {
+      document.querySelectorAll('[data-admin-action]').forEach((button) => {
+        button.addEventListener('click', handleAdminAction);
+      });
+    }
+
+    function handleAdminAction(event) {
+      if (!state.isAdmin) return;
+      const button = event.currentTarget;
+      const action = button.dataset.adminAction;
+      const selected = state.processes.find((item) => item.id === state.selectedId);
+
+      if (action === 'edit-process') openRecordForm('processes', findRecord('processes', Number(button.dataset.id)));
+      if (action === 'delete-process') confirmDelete('processes', findRecord('processes', Number(button.dataset.id)));
+      if (action === 'add-history') openRecordForm('history', {
+        id_proceso: Number(button.dataset.processId || selected?.id),
+        id_paso: button.dataset.stepId ? Number(button.dataset.stepId) : '',
+        fecha_ejecucion: todayISO(),
+        estado_fase: 'Aprobado'
+      });
+      if (action === 'edit-history') openRecordForm('history', findRecord('history', Number(button.dataset.id)));
+      if (action === 'delete-history') confirmDelete('history', findRecord('history', Number(button.dataset.id)));
+      if (action === 'add-evidence') openRecordForm('evidence', { fecha_carga: dateTimeLocalValue(new Date()) });
+      if (action === 'edit-evidence') openRecordForm('evidence', findRecord('evidence', Number(button.dataset.id)));
+      if (action === 'delete-evidence') confirmDelete('evidence', findRecord('evidence', Number(button.dataset.id)));
+      if (action === 'edit-course') openRecordForm('courses', findRecord('courses', Number(button.dataset.id)));
+      if (action === 'delete-course') confirmDelete('courses', findRecord('courses', Number(button.dataset.id)));
+      if (action === 'add-record') openRecordForm(button.dataset.tableKey, defaultRecord(button.dataset.tableKey));
+      if (action === 'edit-record') openRecordForm(button.dataset.tableKey, findRecordByEncodedId(button.dataset.tableKey, button.dataset.recordId));
+      if (action === 'delete-record') confirmDelete(button.dataset.tableKey, findRecordByEncodedId(button.dataset.tableKey, button.dataset.recordId));
+    }
+
+    function openRecordForm(tableKey, record = {}) {
+      const config = EDIT_CONFIG[tableKey];
+      const isEdit = Boolean(record && hasPrimaryKey(config, record));
+      const title = `${isEdit ? 'Editar' : 'Crear'} ${config.label}`;
+      const body = `
+        <form id="recordForm">
+          <div class="form-grid">
+            ${config.fields.map((field) => fieldTemplate(field, record)).join('')}
+          </div>
+          <div class="form-actions">
+            <button class="mini-button" type="button" data-close-modal>Cancelar</button>
+            <button class="btn" type="submit">${isEdit ? 'Guardar cambios' : 'Crear registro'}</button>
+          </div>
+        </form>
+      `;
+
+      openModal(title, 'Los cambios se guardan directamente en Supabase.', body);
+      document.getElementById('recordForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        await saveRecord(tableKey, record, new FormData(event.currentTarget));
+      });
+    }
+
+    function fieldTemplate(field, record) {
+      const value = record?.[field.name] ?? '';
+      const wide = field.type === 'textarea' || field.name.includes('comentario') || field.name.includes('motivo') ? ' wide' : '';
+      const required = field.required === false ? '' : ' required';
+
+      if (field.type === 'textarea') {
+        return `
+          <div class="field${wide}">
+            <label for="${field.name}">${escapeHtml(field.label)}</label>
+            <textarea id="${field.name}" name="${field.name}"${required}>${escapeHtml(value)}</textarea>
+          </div>
+        `;
+      }
+
+      if (field.type === 'select' || field.type === 'select-static') {
+        const options = field.type === 'select-static'
+          ? field.options.map((option) => ({ value: option, label: option }))
+          : (state.data[field.source] || []).map((item) => ({ value: item[field.value], label: field.text(item) }));
+        return `
+          <div class="field${wide}">
+            <label for="${field.name}">${escapeHtml(field.label)}</label>
+            <select id="${field.name}" name="${field.name}"${required}>
+              <option value="">Seleccionar</option>
+              ${options.map((option) => `<option value="${escapeHtml(option.value)}" ${String(option.value) === String(value) ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}
+            </select>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="field${wide}">
+          <label for="${field.name}">${escapeHtml(field.label)}</label>
+          <input id="${field.name}" name="${field.name}" type="${field.type || 'text'}" value="${escapeHtml(inputValue(field, value))}"${field.min ? ` min="${field.min}"` : ''}${field.max ? ` max="${field.max}"` : ''}${required}>
+        </div>
+      `;
+    }
+
+    async function saveRecord(tableKey, original, formData) {
+      const config = EDIT_CONFIG[tableKey];
+      const payload = {};
+
+      config.fields.forEach((field) => {
+        const raw = formData.get(field.name);
+        payload[field.name] = castFieldValue(field, raw);
+      });
+
+      const isEdit = hasPrimaryKey(config, original);
+      const query = state.client.from(config.table);
+      const { error } = isEdit
+        ? await applyPrimaryKeyFilter(query.update(payload), config, original)
+        : await query.insert(payload);
+
+      if (error) {
+        showConnectionMessage(`No se pudo guardar: ${error.message}`);
+        return;
+      }
+
+      closeModal();
+      await refreshData();
+      showConnectionMessage('Cambio guardado correctamente en Supabase.');
+      setTimeout(hideConnectionMessage, 2400);
+    }
+
+    async function confirmDelete(tableKey, record) {
+      if (!record) return;
+      const config = EDIT_CONFIG[tableKey];
+      const label = recordLabel(tableKey, record);
+      const accepted = window.confirm(`Eliminar ${config.label}: ${label}?`);
+      if (!accepted) return;
+
+      const { error } = await applyPrimaryKeyFilter(state.client.from(config.table).delete(), config, record);
+      if (error) {
+        showConnectionMessage(`No se pudo eliminar: ${error.message}`);
+        return;
+      }
+
+      await refreshData();
+      showConnectionMessage('Registro eliminado correctamente.');
+      setTimeout(hideConnectionMessage, 2400);
+    }
+
+    function openModal(title, subtitle, body) {
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalSubtitle').textContent = subtitle || '';
+      document.getElementById('modalBody').innerHTML = body;
+      document.getElementById('modalOverlay').classList.add('is-open');
+      document.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', closeModal));
+    }
+
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.remove('is-open');
+    }
+
+    function applyPrimaryKeyFilter(query, config, record) {
+      const keys = Array.isArray(config.pk) ? config.pk : [config.pk];
+      return keys.reduce((current, key) => current.eq(key, record[key]), query);
+    }
+
+    function hasPrimaryKey(config, record) {
+      if (!record) return false;
+      const keys = Array.isArray(config.pk) ? config.pk : [config.pk];
+      return keys.every((key) => record[key] !== undefined && record[key] !== null && record[key] !== '');
+    }
+
+    function encodeRecordId(config, record) {
+      const keys = Array.isArray(config.pk) ? config.pk : [config.pk];
+      return keys.map((key) => `${key}:${record[key]}`).join('|');
+    }
+
+    function findRecordByEncodedId(tableKey, encodedId) {
+      const config = EDIT_CONFIG[tableKey];
+      const keys = Object.fromEntries(String(encodedId).split('|').map((part) => part.split(':')));
+      return (state.data[tableKey] || []).find((record) => {
+        const pk = Array.isArray(config.pk) ? config.pk : [config.pk];
+        return pk.every((key) => String(record[key]) === String(keys[key]));
+      });
+    }
+
+    function findRecord(tableKey, id) {
+      const config = EDIT_CONFIG[tableKey];
+      if (Array.isArray(config.pk)) return null;
+      return (state.data[tableKey] || []).find((record) => Number(record[config.pk]) === Number(id));
+    }
+
+    function defaultRecord(tableKey) {
+      if (tableKey === 'history') return { fecha_ejecucion: todayISO(), estado_fase: 'Aprobado', id_proceso: state.selectedId || '' };
+      if (tableKey === 'evidence') return { fecha_carga: dateTimeLocalValue(new Date()) };
+      if (tableKey === 'answers') return { fecha_respuesta: dateTimeLocalValue(new Date()), valor_respuesta: 3 };
+      if (tableKey === 'courses') return { creditos: 4, modalidad: 'Presencial' };
+      return {};
+    }
+
+    function castFieldValue(field, raw) {
+      if (raw === '') return null;
+      if (field.type === 'number' || field.name.startsWith('id_') || field.name === 'valor_respuesta') return Number(raw);
+      if (field.type === 'datetime-local') return new Date(raw).toISOString();
+      return raw;
+    }
+
+    function inputValue(field, value) {
+      if (!value) return '';
+      if (field.type === 'datetime-local') return dateTimeLocalValue(value);
+      return value;
+    }
+
+    function todayISO() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function dateTimeLocalValue(value) {
+      const date = value instanceof Date ? value : new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      const offset = date.getTimezoneOffset() * 60000;
+      return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+    }
+
+    function processOptionLabel(item) {
+      const plan = state.data.plans.find((planItem) => planItem.id_plan === item.id_plan_nuevo || planItem.id_plan === item.id_plan_evaluado);
+      return `PC01-${item.id_proceso} - ${plan?.nombre_carrera || 'Sin carrera'}`;
+    }
+
+    function historyOptionLabel(item) {
+      const step = state.data.steps.find((stepItem) => stepItem.id_paso === item.id_paso);
+      return `Historial ${item.id_historial} - PC01-${item.id_proceso} - Paso ${step?.numero_paso || item.id_paso}`;
+    }
+
+    function courseOptionLabel(item) {
+      return `${item.codigo_curso} - ${item.nombre}`;
+    }
+
+    function recordLabel(tableKey, record) {
+      if (tableKey === 'processes') return `PC01-${record.id_proceso}`;
+      if (tableKey === 'history') return `Historial ${record.id_historial}`;
+      if (tableKey === 'evidence') return record.tipo_documento || `Evidencia ${record.id_evidencia}`;
+      if (tableKey === 'plans') return planLabel(record);
+      if (tableKey === 'courses') return courseOptionLabel(record);
+      if (tableKey === 'answers') return `Respuesta ${record.id_respuesta}`;
+      if (tableKey === 'prerequisites') return `${record.id_curso_previo} -> ${record.id_curso_objetivo}`;
+      return 'registro';
     }
 
     function statusBadge(status) {
