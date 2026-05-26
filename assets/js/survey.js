@@ -139,7 +139,7 @@ function showSurveyMessage(message, isError) {
 
 function planLabel(plan) {
   if (!plan) return '-';
-  return `${plan.nombre_carrera} ${plan.anio_version} - ${plan.total_creditos_requeridos} cred. - ${plan.estado}`;
+  return plan.nombre_carrera;
 }
 
 function normalizeEmail(value) {
