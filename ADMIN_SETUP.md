@@ -72,3 +72,14 @@ for delete to authenticated using (true);
 ```
 
 Tambien conserva `SELECT` publico en `plan_estudio`, `poblacion_objetivo` y `pregunta_encuesta`, porque el formulario necesita cargar planes, grupos de interes y preguntas.
+
+## Mejoras de modelo para sustentar la exposicion
+
+El archivo `supabase_mejoras_recomendadas.sql` contiene mejoras alineadas al curso de base de datos:
+
+- Columna `correo_institucional` en `respuesta_encuesta`.
+- Constraint para dominio `@usmp.pe`.
+- Indices para consultas frecuentes del dashboard.
+- Indice unico para evitar duplicar `codigo_curso` dentro del mismo plan.
+
+Antes de ejecutar el indice unico, revisa la pestana `Auditoria BD` en la web. Si detecta codigos duplicados por plan, corrige esos datos primero.

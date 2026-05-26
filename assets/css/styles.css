@@ -1128,6 +1128,93 @@
       border-bottom: 1px solid var(--line);
     }
 
+    .schema-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+    }
+
+    .schema-card {
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .schema-card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .schema-card h3 {
+      margin: 4px 0 0;
+      font-size: 16px;
+      line-height: 1.35;
+    }
+
+    .schema-card p {
+      margin: 0 0 12px;
+      color: #3d4658;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .schema-columns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .schema-columns span {
+      padding: 5px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fbfcff;
+      color: #3d4658;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .relation-list {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .audit-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .audit-card {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .audit-card strong {
+      display: block;
+      margin-top: 6px;
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .audit-card p {
+      margin: 9px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
     .admin-toolbar {
       display: none;
       align-items: center;
@@ -1542,6 +1629,7 @@
       .admin-action-grid,
       .support-tools,
       .survey-qr-card,
+      .audit-summary,
       .summary-grid,
       .timeline-summary,
       .public-status-grid {

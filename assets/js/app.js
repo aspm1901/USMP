@@ -20,6 +20,92 @@
       prerequisites: 'prerrequisito'
     };
 
+    const DB_DICTIONARY = [
+      {
+        table: TABLES.processes,
+        title: 'Proceso curricular',
+        purpose: 'Expediente principal del proceso PC01; relaciona plan evaluado, plan nuevo, periodo y estado del proceso.',
+        pk: ['id_proceso'],
+        columns: ['id_proceso', 'id_plan_evaluado', 'id_plan_nuevo', 'id_periodo', 'fecha_inicio', 'estado_proceso', 'motivo_revision'],
+        relations: [
+          'id_plan_evaluado -> plan_estudio.id_plan',
+          'id_plan_nuevo -> plan_estudio.id_plan',
+          'id_periodo -> periodo_academico.id_periodo'
+        ]
+      },
+      {
+        table: TABLES.history,
+        title: 'Historial de fase',
+        purpose: 'Registra cada paso ejecutado del PC01, con actor responsable, fecha, estado y observacion.',
+        pk: ['id_historial'],
+        columns: ['id_historial', 'id_proceso', 'id_paso', 'id_actor', 'fecha_ejecucion', 'estado_fase', 'observaciones_revision'],
+        relations: [
+          'id_proceso -> proceso_curricular.id_proceso',
+          'id_paso -> catalogo_paso.id_paso',
+          'id_actor -> actor_institucional.id_actor'
+        ]
+      },
+      {
+        table: TABLES.evidence,
+        title: 'Evidencia documental',
+        purpose: 'Documentos vinculados a una fase del historial para sustentar decisiones y aprobaciones.',
+        pk: ['id_evidencia'],
+        columns: ['id_evidencia', 'id_historial', 'tipo_documento', 'ruta_archivo_pdf', 'fecha_carga'],
+        relations: ['id_historial -> historial_fase.id_historial']
+      },
+      {
+        table: TABLES.plans,
+        title: 'Plan de estudio',
+        purpose: 'Versiones de mallas curriculares por carrera, creditos requeridos y estado de vigencia.',
+        pk: ['id_plan'],
+        columns: ['id_plan', 'anio_version', 'nombre_carrera', 'total_creditos_requeridos', 'estado'],
+        relations: []
+      },
+      {
+        table: TABLES.courses,
+        title: 'Curso',
+        purpose: 'Cursos pertenecientes a un plan, clasificados por area academica, ciclo, creditos y modalidad.',
+        pk: ['id_curso'],
+        columns: ['id_curso', 'id_plan', 'id_area', 'id_ciclo', 'codigo_curso', 'nombre', 'creditos', 'modalidad'],
+        relations: [
+          'id_plan -> plan_estudio.id_plan',
+          'id_area -> area_academica.id_area',
+          'id_ciclo -> ciclo_academico.id_ciclo'
+        ]
+      },
+      {
+        table: TABLES.prerequisites,
+        title: 'Prerrequisito',
+        purpose: 'Tabla asociativa que modela dependencias entre cursos objetivo y cursos previos.',
+        pk: ['id_curso_objetivo', 'id_curso_previo'],
+        columns: ['id_curso_objetivo', 'id_curso_previo', 'comentarios_regla'],
+        relations: [
+          'id_curso_objetivo -> curso.id_curso',
+          'id_curso_previo -> curso.id_curso'
+        ]
+      },
+      {
+        table: TABLES.answers,
+        title: 'Respuesta encuesta',
+        purpose: 'Feedback externo por pregunta, plan, poblacion objetivo, puntaje, comentario y correo institucional.',
+        pk: ['id_respuesta'],
+        columns: ['id_respuesta', 'id_pregunta', 'id_plan', 'id_poblacion', 'correo_institucional', 'valor_respuesta', 'comentario', 'fecha_respuesta'],
+        relations: [
+          'id_pregunta -> pregunta_encuesta.id_pregunta',
+          'id_plan -> plan_estudio.id_plan',
+          'id_poblacion -> poblacion_objetivo.id_poblacion'
+        ]
+      },
+      {
+        table: TABLES.questions,
+        title: 'Pregunta encuesta',
+        purpose: 'Catalogo de preguntas por categoria para medir satisfaccion, tecnologia, malla, empleabilidad e infraestructura.',
+        pk: ['id_pregunta'],
+        columns: ['id_pregunta', 'categoria', 'texto_pregunta'],
+        relations: []
+      }
+    ];
+
     const state = {
       client: null,
       data: null,
@@ -909,7 +995,9 @@
         ['answers', 'Feedback', supportAnswers],
         ['evidence', 'Evidencias', supportEvidence],
         ['prerequisites', 'Prerrequisitos', supportPrerequisites],
-        ['catalogs', 'Catalogos', supportCatalogs]
+        ['catalogs', 'Catalogos', supportCatalogs],
+        ['dictionary', 'Diccionario BD', supportDictionary],
+        ['integrity', 'Auditoria BD', supportIntegrity]
       ];
     }
 
@@ -1186,6 +1274,157 @@
           <div class="info-card"><div class="info-card-header">Preguntas de encuesta</div><div class="info-card-body">${simpleTable(state.data.questions, ['categoria', 'texto_pregunta'])}</div></div>
         </div>
       `;
+    }
+
+    function supportDictionary() {
+      return `
+        <div class="schema-grid">
+          ${DB_DICTIONARY.map((entity) => `
+            <article class="schema-card">
+              <div class="schema-card-head">
+                <div>
+                  <span class="section-eyebrow">${escapeHtml(entity.table)}</span>
+                  <h3>${escapeHtml(entity.title)}</h3>
+                </div>
+                <span class="badge status-default">PK: ${escapeHtml(entity.pk.join(', '))}</span>
+              </div>
+              <p>${escapeHtml(entity.purpose)}</p>
+              <div class="schema-columns">
+                ${entity.columns.map((column) => `<span>${escapeHtml(column)}</span>`).join('')}
+              </div>
+              <div class="relation-list">
+                ${entity.relations.length
+                  ? entity.relations.map((relation) => `<div>${escapeHtml(relation)}</div>`).join('')
+                  : '<div>Tabla catalogo sin llave foranea directa.</div>'}
+              </div>
+            </article>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function supportIntegrity() {
+      const issues = integrityIssues();
+      const status = issues.length ? 'Observaciones detectadas' : 'Sin inconsistencias detectadas';
+      const summary = `
+        <div class="audit-summary">
+          <article class="audit-card">
+            <span class="summary-label">Tablas revisadas</span>
+            <strong>${DB_DICTIONARY.length}</strong>
+            <p>Validacion cruzada entre entidades principales y tablas catalogo.</p>
+          </article>
+          <article class="audit-card">
+            <span class="summary-label">Hallazgos</span>
+            <strong>${issues.length}</strong>
+            <p>${escapeHtml(status)}</p>
+          </article>
+          <article class="audit-card">
+            <span class="summary-label">Regla principal</span>
+            <strong>FK</strong>
+            <p>Todo registro dependiente debe apuntar a una entidad existente.</p>
+          </article>
+        </div>
+      `;
+
+      if (!issues.length) {
+        return `${summary}${emptyTemplate('La auditoria no encontro referencias huerfanas ni duplicados criticos con los datos actuales.')}`;
+      }
+
+      return `${summary}${simpleTable(issues, ['entidad', 'registro', 'regla', 'detalle', 'estado'])}`;
+    }
+
+    function integrityIssues() {
+      const issues = [];
+      const plans = mapBy(state.data.plans, 'id_plan');
+      const periods = mapBy(state.data.periods, 'id_periodo');
+      const processes = mapBy(state.data.processes, 'id_proceso');
+      const history = mapBy(state.data.history, 'id_historial');
+      const steps = mapBy(state.data.steps, 'id_paso');
+      const actors = mapBy(state.data.actors, 'id_actor');
+      const areas = mapBy(state.data.areas, 'id_area');
+      const cycles = mapBy(state.data.cycles, 'id_ciclo');
+      const courses = mapBy(state.data.courses, 'id_curso');
+      const questions = mapBy(state.data.questions, 'id_pregunta');
+      const populations = mapBy(state.data.populations, 'id_poblacion');
+
+      state.data.processes.forEach((item) => {
+        addMissingReference(issues, 'proceso_curricular', `PC01-${item.id_proceso}`, 'id_plan_evaluado', item.id_plan_evaluado, plans, TABLES.plans);
+        addMissingReference(issues, 'proceso_curricular', `PC01-${item.id_proceso}`, 'id_plan_nuevo', item.id_plan_nuevo, plans, TABLES.plans);
+        addMissingReference(issues, 'proceso_curricular', `PC01-${item.id_proceso}`, 'id_periodo', item.id_periodo, periods, TABLES.periods);
+      });
+
+      state.data.history.forEach((item) => {
+        addMissingReference(issues, 'historial_fase', `Historial ${item.id_historial}`, 'id_proceso', item.id_proceso, processes, TABLES.processes);
+        addMissingReference(issues, 'historial_fase', `Historial ${item.id_historial}`, 'id_paso', item.id_paso, steps, TABLES.steps);
+        addMissingReference(issues, 'historial_fase', `Historial ${item.id_historial}`, 'id_actor', item.id_actor, actors, TABLES.actors);
+      });
+
+      state.data.evidence.forEach((item) => {
+        addMissingReference(issues, 'evidencia_documental', `Evidencia ${item.id_evidencia}`, 'id_historial', item.id_historial, history, TABLES.history);
+      });
+
+      state.data.courses.forEach((item) => {
+        addMissingReference(issues, 'curso', `${item.codigo_curso || 'Curso'} ${item.id_curso}`, 'id_plan', item.id_plan, plans, TABLES.plans);
+        addMissingReference(issues, 'curso', `${item.codigo_curso || 'Curso'} ${item.id_curso}`, 'id_area', item.id_area, areas, TABLES.areas);
+        addMissingReference(issues, 'curso', `${item.codigo_curso || 'Curso'} ${item.id_curso}`, 'id_ciclo', item.id_ciclo, cycles, TABLES.cycles);
+      });
+
+      state.data.answers.forEach((item) => {
+        addMissingReference(issues, 'respuesta_encuesta', `Respuesta ${item.id_respuesta}`, 'id_pregunta', item.id_pregunta, questions, TABLES.questions);
+        addMissingReference(issues, 'respuesta_encuesta', `Respuesta ${item.id_respuesta}`, 'id_plan', item.id_plan, plans, TABLES.plans);
+        addMissingReference(issues, 'respuesta_encuesta', `Respuesta ${item.id_respuesta}`, 'id_poblacion', item.id_poblacion, populations, TABLES.populations);
+        if (item.correo_institucional && !normalizeText(item.correo_institucional).endsWith('@usmp.pe')) {
+          issues.push({
+            entidad: 'respuesta_encuesta',
+            registro: `Respuesta ${item.id_respuesta}`,
+            regla: 'correo institucional',
+            detalle: 'El correo no pertenece al dominio @usmp.pe.',
+            estado: 'Revisar'
+          });
+        }
+      });
+
+      state.data.prerequisites.forEach((item) => {
+        addMissingReference(issues, 'prerrequisito', `${item.id_curso_objetivo} <- ${item.id_curso_previo}`, 'id_curso_objetivo', item.id_curso_objetivo, courses, TABLES.courses);
+        addMissingReference(issues, 'prerrequisito', `${item.id_curso_objetivo} <- ${item.id_curso_previo}`, 'id_curso_previo', item.id_curso_previo, courses, TABLES.courses);
+        if (item.id_curso_objetivo === item.id_curso_previo) {
+          issues.push({
+            entidad: 'prerrequisito',
+            registro: `${item.id_curso_objetivo} <- ${item.id_curso_previo}`,
+            regla: 'autorreferencia',
+            detalle: 'Un curso no deberia ser prerrequisito de si mismo.',
+            estado: 'Revisar'
+          });
+        }
+      });
+
+      const courseCodes = groupBy(state.data.courses, (course) => `${course.id_plan}|${normalizeText(course.codigo_curso)}`);
+      courseCodes.forEach((records, key) => {
+        const [, code] = key.split('|');
+        if (code && records.length > 1) {
+          issues.push({
+            entidad: 'curso',
+            registro: records.map((course) => course.id_curso).join(', '),
+            regla: 'codigo unico por plan',
+            detalle: `El codigo ${records[0].codigo_curso} aparece ${records.length} veces en el mismo plan.`,
+            estado: 'Duplicado'
+          });
+        }
+      });
+
+      return issues;
+    }
+
+    function addMissingReference(issues, entity, record, field, value, lookup, targetTable) {
+      if (value === null || value === undefined || value === '') return;
+      if (lookup.has(value)) return;
+      issues.push({
+        entidad: entity,
+        registro: record,
+        regla: `${field} -> ${targetTable}`,
+        detalle: `No existe el valor referenciado: ${value}.`,
+        estado: 'Referencia huerfana'
+      });
     }
 
     function summaryItem(label, value) {
