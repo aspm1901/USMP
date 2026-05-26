@@ -26,6 +26,7 @@
       processes: [],
       filtered: [],
       selectedId: null,
+      activeModule: 'dashboard',
       activeDetailTab: 'timeline',
       selectedTimelineStep: {},
       activeSupport: 'courses',
@@ -175,6 +176,12 @@
     }
 
     function bindEvents() {
+      document.querySelectorAll('[data-module-target]').forEach((button) => {
+        button.addEventListener('click', () => {
+          state.activeModule = button.dataset.moduleTarget;
+          renderActiveModule();
+        });
+      });
       document.getElementById('searchInput').addEventListener('input', applyFilters);
       document.getElementById('filterPeriod').addEventListener('change', applyFilters);
       document.getElementById('filterCareer').addEventListener('change', applyFilters);
@@ -298,11 +305,22 @@
 
     function render() {
       document.body.classList.toggle('admin-mode', state.isAdmin);
+      renderActiveModule();
       renderMetrics();
       renderAuthorityInsights();
       renderProcessList();
       renderDetail();
       renderSupport();
+      renderAdminHome();
+    }
+
+    function renderActiveModule() {
+      document.querySelectorAll('[data-module-target]').forEach((button) => {
+        button.classList.toggle('is-active', button.dataset.moduleTarget === state.activeModule);
+      });
+      document.querySelectorAll('[data-module-page]').forEach((section) => {
+        section.classList.toggle('is-active', section.dataset.modulePage === state.activeModule);
+      });
     }
 
     function renderMetrics() {
@@ -838,6 +856,54 @@
         });
       });
 
+      bindAdminActionButtons();
+    }
+
+    function renderAdminHome() {
+      const container = document.getElementById('adminHomeContent');
+      if (!container) return;
+
+      if (!state.isAdmin) {
+        container.innerHTML = `
+          <div class="admin-home-body">
+            <div class="admin-login-note">
+              Para modificar datos inicia sesion como administrador. En modo invitado la plataforma queda como consulta publica, sin botones de crear, editar ni eliminar.
+            </div>
+            <button id="adminModuleLogin" class="btn" type="button">Ingresar como admin</button>
+          </div>
+        `;
+        document.getElementById('adminModuleLogin').addEventListener('click', openLoginModal);
+        return;
+      }
+
+      const actions = [
+        ['processes', 'Nuevo expediente', 'Registra un proceso curricular PC01.'],
+        ['history', 'Nueva fase', 'Agrega un paso ejecutado dentro de la trazabilidad.'],
+        ['evidence', 'Nueva evidencia', 'Vincula un documento a una fase registrada.'],
+        ['plans', 'Nuevo plan', 'Crea una version de plan de estudio.'],
+        ['courses', 'Nuevo curso', 'Agrega cursos a un plan curricular.'],
+        ['answers', 'Nueva respuesta', 'Registra feedback de una poblacion objetivo.'],
+        ['prerequisites', 'Nuevo prerrequisito', 'Relaciona cursos objetivo y previos.']
+      ];
+
+      container.innerHTML = `
+        <div class="admin-home-body">
+          <div class="admin-action-grid">
+            ${actions.map(([tableKey, title, text]) => `
+              <article class="admin-action-card">
+                <div>
+                  <strong>${escapeHtml(title)}</strong>
+                  <p>${escapeHtml(text)}</p>
+                </div>
+                <button class="mini-button" type="button" data-admin-action="add-record" data-table-key="${tableKey}">Crear</button>
+              </article>
+            `).join('')}
+          </div>
+          <div class="admin-login-note">
+            Para editar o eliminar registros existentes usa el modulo Consultas o el detalle del expediente seleccionado.
+          </div>
+        </div>
+      `;
       bindAdminActionButtons();
     }
 

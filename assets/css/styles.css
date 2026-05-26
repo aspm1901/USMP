@@ -128,6 +128,122 @@
       padding: 26px 0 42px;
     }
 
+    .app-shell {
+      display: grid;
+      grid-template-columns: 238px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .module-sidebar {
+      position: sticky;
+      top: 110px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .sidebar-label {
+      padding: 15px 16px 8px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .module-nav {
+      display: grid;
+      gap: 6px;
+      padding: 8px;
+    }
+
+    .module-nav-button {
+      width: 100%;
+      min-height: 66px;
+      padding: 11px 12px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .module-nav-button span,
+    .module-nav-button small {
+      display: block;
+    }
+
+    .module-nav-button span {
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .module-nav-button small {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .module-nav-button:hover,
+    .module-nav-button.is-active {
+      border-color: rgba(178, 34, 34, 0.18);
+      background: rgba(178, 34, 34, 0.07);
+      color: var(--usmp-red-strong);
+    }
+
+    .module-nav-button.is-active small {
+      color: #7b4250;
+    }
+
+    .module-content {
+      min-width: 0;
+    }
+
+    .module-page {
+      display: none;
+    }
+
+    .module-page.is-active {
+      display: block;
+      animation: fadeIn 220ms ease both;
+    }
+
+    .module-heading {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .module-kicker {
+      margin: 0 0 5px;
+      color: var(--usmp-red-strong);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .module-heading h2 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.15;
+      font-weight: 800;
+    }
+
+    .module-note {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      text-align: right;
+    }
+
     .public-intro {
       margin-bottom: 16px;
       padding: 14px 16px;
@@ -933,7 +1049,7 @@
     }
 
     .support-section {
-      margin-top: 18px;
+      margin-top: 0;
     }
 
     .support-tabs {
@@ -957,6 +1073,55 @@
 
     .admin-mode .admin-toolbar {
       display: flex;
+    }
+
+    .admin-home {
+      max-width: 920px;
+    }
+
+    .admin-home-body {
+      display: grid;
+      gap: 14px;
+      padding: 16px;
+    }
+
+    .admin-login-note {
+      padding: 16px;
+      border: 1px solid rgba(178, 34, 34, 0.18);
+      border-radius: var(--radius);
+      background: rgba(178, 34, 34, 0.06);
+      color: #3d4658;
+      line-height: 1.55;
+    }
+
+    .admin-action-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .admin-action-card {
+      min-height: 118px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .admin-action-card strong {
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .admin-action-card p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
     }
 
     .admin-actions {
@@ -1114,6 +1279,25 @@
     }
 
     @media (max-width: 1180px) {
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .module-sidebar {
+        position: sticky;
+        top: 84px;
+        z-index: 10;
+      }
+
+      .module-nav {
+        display: flex;
+        overflow-x: auto;
+      }
+
+      .module-nav-button {
+        min-width: 176px;
+      }
+
       .layout,
       .section-grid,
       .authority-grid,
@@ -1149,6 +1333,19 @@
         justify-content: flex-start;
       }
 
+      .module-sidebar {
+        top: 118px;
+      }
+
+      .module-heading {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .module-note {
+        text-align: left;
+      }
+
       .page-title {
         font-size: 20px;
       }
@@ -1160,6 +1357,7 @@
 
       .metrics,
       .filters,
+      .admin-action-grid,
       .summary-grid,
       .timeline-summary,
       .public-status-grid {

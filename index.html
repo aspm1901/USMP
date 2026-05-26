@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="./assets/css/styles.css?v=8">
+  <link rel="stylesheet" href="./assets/css/styles.css?v=9">
 </head>
 <body>
   <header class="topbar">
@@ -33,126 +33,215 @@
   </header>
 
   <main class="page">
-    <section id="connectionAlert" class="alert">
-      <strong>Conexion:</strong>
-      <span id="connectionMessage">Preparando consulta.</span>
-    </section>
-
-    <section class="public-intro" aria-label="Transparencia del proceso">
-      Esta vista permite consultar el avance de modificacion curricular, sus responsables y evidencias registradas.
-    </section>
-
-    <section class="metrics" aria-label="Indicadores principales">
-      <article class="metric">
-        <div class="metric-label">Expedientes</div>
-        <div id="metricTotal" class="metric-value">0</div>
-        <div class="metric-caption">Procesos curriculares registrados</div>
-      </article>
-      <article class="metric">
-        <div class="metric-label">Avance promedio</div>
-        <div id="metricProgress" class="metric-value">0%</div>
-        <div class="metric-caption">Segun historial de fases</div>
-      </article>
-      <article class="metric">
-        <div class="metric-label">Observados</div>
-        <div id="metricObserved" class="metric-value">0</div>
-        <div class="metric-caption">Requieren atencion</div>
-      </article>
-      <article class="metric">
-        <div class="metric-label">Finalizados</div>
-        <div id="metricDone" class="metric-value">0</div>
-        <div class="metric-caption">Procesos culminados</div>
-      </article>
-      <article class="metric">
-        <div class="metric-label">Atencion activa</div>
-        <div id="metricAttention" class="metric-value">0</div>
-        <div class="metric-caption">Observaciones o fases observadas</div>
-      </article>
-      <article class="metric">
-        <div class="metric-label">Periodo activo</div>
-        <div id="metricActivePeriod" class="metric-value metric-text">-</div>
-        <div class="metric-caption">Ultimo periodo vigente o futuro</div>
-      </article>
-      <article class="metric">
-        <div class="metric-label">Evidencias</div>
-        <div id="metricEvidence" class="metric-value">0</div>
-        <div class="metric-caption">Documentos registrados</div>
-      </article>
-      <article class="metric">
-        <div class="metric-label">Feedback promedio</div>
-        <div id="metricFeedback" class="metric-value">0.0</div>
-        <div class="metric-caption">Escala 1 a 5</div>
-      </article>
-    </section>
-
-    <section class="authority-grid" aria-label="Lectura para autoridades">
-      <article class="panel insight-card">
-        <div class="panel-header">
-          <h2 class="panel-title">Atencion requerida</h2>
-          <span id="attentionCount" class="panel-note">0 casos</span>
-        </div>
-        <div id="attentionList" class="insight-list"></div>
-      </article>
-      <article class="panel insight-card">
-        <div class="panel-header">
-          <h2 class="panel-title">Responsables</h2>
-          <span class="panel-note">Fases registradas</span>
-        </div>
-        <div id="responsibleList" class="insight-list"></div>
-      </article>
-      <article class="panel insight-card">
-        <div class="panel-header">
-          <h2 class="panel-title">Cuellos de botella</h2>
-          <span id="bottleneckCount" class="panel-note">0 alertas</span>
-        </div>
-        <div id="bottleneckList" class="insight-list"></div>
-      </article>
-    </section>
-
-    <section class="filters" aria-label="Filtros">
-      <div class="field">
-        <label for="searchInput">Busqueda</label>
-        <input id="searchInput" type="search" placeholder="Buscar carrera, motivo, observacion, curso o evidencia">
-      </div>
-      <div class="field">
-        <label for="filterPeriod">Periodo</label>
-        <select id="filterPeriod"></select>
-      </div>
-      <div class="field">
-        <label for="filterCareer">Carrera</label>
-        <select id="filterCareer"></select>
-      </div>
-      <div class="field">
-        <label for="filterStatus">Estado</label>
-        <select id="filterStatus"></select>
-      </div>
-      <button id="clearFilters" class="btn" type="button">Limpiar</button>
-    </section>
-
-    <section class="layout">
-      <aside class="panel">
-        <div class="panel-header">
-          <h2 class="panel-title">Expedientes</h2>
-          <span id="resultCount" class="panel-note">0 resultados</span>
-        </div>
-        <div id="processList" class="process-list"></div>
+    <div class="app-shell">
+      <aside class="module-sidebar" aria-label="Navegacion principal">
+        <div class="sidebar-label">Modulos</div>
+        <nav class="module-nav">
+          <button class="module-nav-button is-active" type="button" data-module-target="dashboard">
+            <span>Tablero</span>
+            <small>Resumen ejecutivo</small>
+          </button>
+          <button class="module-nav-button" type="button" data-module-target="records">
+            <span>Expedientes</span>
+            <small>Trazabilidad PC01</small>
+          </button>
+          <button class="module-nav-button" type="button" data-module-target="model">
+            <span>Consultas</span>
+            <small>Modelo de datos</small>
+          </button>
+          <button class="module-nav-button" type="button" data-module-target="admin">
+            <span>Administracion</span>
+            <small>Solo admin</small>
+          </button>
+        </nav>
       </aside>
 
-      <section class="panel detail">
-        <div id="detailContent"></div>
-      </section>
-    </section>
+      <section class="module-content">
+        <section id="connectionAlert" class="alert">
+          <strong>Conexion:</strong>
+          <span id="connectionMessage">Preparando consulta.</span>
+        </section>
 
-    <section class="panel support-section">
-      <div class="panel-header">
-        <div>
-          <h2 class="panel-title">Consultas del modelo</h2>
-          <div class="panel-note">Informacion derivada de las tablas relacionadas</div>
-        </div>
-      </div>
-      <div id="supportTabs" class="support-tabs"></div>
-      <div id="supportContent" class="tab-panel is-active"></div>
-    </section>
+        <section class="module-page is-active" data-module-page="dashboard">
+          <div class="module-heading">
+            <div>
+              <p class="module-kicker">Vista general</p>
+              <h2>Tablero ejecutivo</h2>
+            </div>
+            <span class="module-note">Lectura rapida para autoridades y transparencia</span>
+          </div>
+
+          <section class="public-intro" aria-label="Transparencia del proceso">
+            Esta vista permite consultar el avance de modificacion curricular, sus responsables y evidencias registradas.
+          </section>
+
+          <section class="metrics" aria-label="Indicadores principales">
+            <article class="metric">
+              <div class="metric-label">Expedientes</div>
+              <div id="metricTotal" class="metric-value">0</div>
+              <div class="metric-caption">Procesos curriculares registrados</div>
+            </article>
+            <article class="metric">
+              <div class="metric-label">Avance promedio</div>
+              <div id="metricProgress" class="metric-value">0%</div>
+              <div class="metric-caption">Segun historial de fases</div>
+            </article>
+            <article class="metric">
+              <div class="metric-label">Observados</div>
+              <div id="metricObserved" class="metric-value">0</div>
+              <div class="metric-caption">Requieren atencion</div>
+            </article>
+            <article class="metric">
+              <div class="metric-label">Finalizados</div>
+              <div id="metricDone" class="metric-value">0</div>
+              <div class="metric-caption">Procesos culminados</div>
+            </article>
+            <article class="metric">
+              <div class="metric-label">Atencion activa</div>
+              <div id="metricAttention" class="metric-value">0</div>
+              <div class="metric-caption">Observaciones o fases observadas</div>
+            </article>
+            <article class="metric">
+              <div class="metric-label">Periodo activo</div>
+              <div id="metricActivePeriod" class="metric-value metric-text">-</div>
+              <div class="metric-caption">Ultimo periodo vigente o futuro</div>
+            </article>
+            <article class="metric">
+              <div class="metric-label">Evidencias</div>
+              <div id="metricEvidence" class="metric-value">0</div>
+              <div class="metric-caption">Documentos registrados</div>
+            </article>
+            <article class="metric">
+              <div class="metric-label">Feedback promedio</div>
+              <div id="metricFeedback" class="metric-value">0.0</div>
+              <div class="metric-caption">Escala 1 a 5</div>
+            </article>
+          </section>
+
+          <section class="authority-grid" aria-label="Lectura para autoridades">
+            <article class="panel insight-card">
+              <div class="panel-header">
+                <h2 class="panel-title">Atencion requerida</h2>
+                <span id="attentionCount" class="panel-note">0 casos</span>
+              </div>
+              <div id="attentionList" class="insight-list"></div>
+            </article>
+            <article class="panel insight-card">
+              <div class="panel-header">
+                <h2 class="panel-title">Responsables</h2>
+                <span class="panel-note">Fases registradas</span>
+              </div>
+              <div id="responsibleList" class="insight-list"></div>
+            </article>
+            <article class="panel insight-card">
+              <div class="panel-header">
+                <h2 class="panel-title">Cuellos de botella</h2>
+                <span id="bottleneckCount" class="panel-note">0 alertas</span>
+              </div>
+              <div id="bottleneckList" class="insight-list"></div>
+            </article>
+          </section>
+
+          <section class="panel compact-legend">
+            <div class="panel-header">
+              <h2 class="panel-title">Leyenda de estados</h2>
+              <span class="panel-note">Interpretacion publica</span>
+            </div>
+            <div class="state-legend">
+              <span class="legend-item"><span class="badge status-finalizado">Finalizado</span> Proceso culminado</span>
+              <span class="legend-item"><span class="badge status-en-curso">En Curso</span> Proceso en evaluacion</span>
+              <span class="legend-item"><span class="badge status-observado">Observado</span> Requiere revision</span>
+              <span class="legend-item"><span class="badge status-missing">Sin registro</span> Paso aun no documentado</span>
+            </div>
+          </section>
+        </section>
+
+        <section class="module-page" data-module-page="records">
+          <div class="module-heading">
+            <div>
+              <p class="module-kicker">Seguimiento PC01</p>
+              <h2>Expedientes curriculares</h2>
+            </div>
+            <span class="module-note">Selecciona un expediente para revisar su trazabilidad</span>
+          </div>
+
+          <section class="filters" aria-label="Filtros">
+            <div class="field">
+              <label for="searchInput">Busqueda</label>
+              <input id="searchInput" type="search" placeholder="Buscar carrera, motivo, observacion, curso o evidencia">
+            </div>
+            <div class="field">
+              <label for="filterPeriod">Periodo</label>
+              <select id="filterPeriod"></select>
+            </div>
+            <div class="field">
+              <label for="filterCareer">Carrera</label>
+              <select id="filterCareer"></select>
+            </div>
+            <div class="field">
+              <label for="filterStatus">Estado</label>
+              <select id="filterStatus"></select>
+            </div>
+            <button id="clearFilters" class="btn" type="button">Limpiar</button>
+          </section>
+
+          <section class="layout">
+            <aside class="panel">
+              <div class="panel-header">
+                <h2 class="panel-title">Expedientes</h2>
+                <span id="resultCount" class="panel-note">0 resultados</span>
+              </div>
+              <div id="processList" class="process-list"></div>
+            </aside>
+
+            <section class="panel detail">
+              <div id="detailContent"></div>
+            </section>
+          </section>
+        </section>
+
+        <section class="module-page" data-module-page="model">
+          <div class="module-heading">
+            <div>
+              <p class="module-kicker">Consultas del modelo</p>
+              <h2>Datos relacionados</h2>
+            </div>
+            <span class="module-note">Tablas de soporte organizadas para lectura</span>
+          </div>
+
+          <section class="panel support-section">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Consultas del modelo</h2>
+                <div class="panel-note">Informacion derivada de las tablas relacionadas</div>
+              </div>
+            </div>
+            <div id="supportTabs" class="support-tabs"></div>
+            <div id="supportContent" class="tab-panel is-active"></div>
+          </section>
+        </section>
+
+        <section class="module-page" data-module-page="admin">
+          <div class="module-heading">
+            <div>
+              <p class="module-kicker">Gestion interna</p>
+              <h2>Administracion</h2>
+            </div>
+            <span class="module-note">Crear, corregir o eliminar registros para la exposicion</span>
+          </div>
+
+          <section class="panel admin-home">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Acciones rapidas</h2>
+                <div class="panel-note">Los cambios se guardan directamente en Supabase</div>
+              </div>
+            </div>
+            <div id="adminHomeContent"></div>
+          </section>
+        </section>
+      </section>
+    </div>
   </main>
 
   <div id="modalOverlay" class="modal-overlay" aria-hidden="true">
@@ -168,7 +257,7 @@
     </section>
   </div>
 
-  <script src="./assets/js/app.js?v=8"></script>
+  <script src="./assets/js/app.js?v=9"></script>
 </body>
 </html>
 
