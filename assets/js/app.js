@@ -30,6 +30,9 @@
       activeDetailTab: 'timeline',
       selectedTimelineStep: {},
       activeSupport: 'courses',
+      supportFilters: {},
+      supportPages: {},
+      supportPageSize: 10,
       user: null,
       isAdmin: false
     };
@@ -344,6 +347,7 @@
     function renderAuthorityInsights() {
       const attention = attentionItems();
       const bottlenecks = bottleneckItems();
+      const feedbackAlerts = feedbackAlertItems();
 
       document.getElementById('attentionCount').textContent = `${attention.length} casos`;
       document.getElementById('attentionList').innerHTML = attention.length
@@ -359,6 +363,11 @@
       document.getElementById('responsibleList').innerHTML = responsible.length
         ? responsible.map((item) => insightItemTemplate(item.actor, `${item.count} fase(s) registradas`, item.dependency, 'Aprobado')).join('')
         : emptyTemplate('Aun no hay responsables registrados.');
+
+      document.getElementById('feedbackAlertCount').textContent = `${feedbackAlerts.length} alertas`;
+      document.getElementById('feedbackAlertList').innerHTML = feedbackAlerts.length
+        ? feedbackAlerts.slice(0, 5).map((item) => insightItemTemplate(item.title, item.detail, item.meta, 'Observado')).join('')
+        : emptyTemplate('No hay carreras con feedback bajo segun las respuestas actuales.');
     }
 
     function activePeriodLabel() {
@@ -431,6 +440,39 @@
       });
 
       return [...counts.values()].sort((a, b) => b.count - a.count);
+    }
+
+    function feedbackAlertItems() {
+      const questions = mapBy(state.data.questions, 'id_pregunta');
+      const plans = mapBy(state.data.plans, 'id_plan');
+      const byPlan = groupBy(state.data.answers, 'id_plan');
+      const alerts = [];
+
+      byPlan.forEach((answers, planId) => {
+        const plan = plans.get(Number(planId));
+        const avg = average(answers.map((item) => Number(item.valor_respuesta)));
+        if (avg > 0 && avg < 3) {
+          alerts.push({
+            title: plan?.nombre_carrera || `Plan ${planId}`,
+            detail: `Feedback promedio bajo: ${avg.toFixed(1)} de 5. Conviene revisar comentarios y causas recurrentes.`,
+            meta: planLabel(plan)
+          });
+        }
+
+        const byCategory = groupBy(answers, (answer) => questions.get(answer.id_pregunta)?.categoria || 'Sin categoria');
+        byCategory.forEach((categoryAnswers, category) => {
+          const categoryAvg = average(categoryAnswers.map((item) => Number(item.valor_respuesta)));
+          if (categoryAvg > 0 && categoryAvg < 3) {
+            alerts.push({
+              title: plan?.nombre_carrera || `Plan ${planId}`,
+              detail: `${category}: promedio ${categoryAvg.toFixed(1)} de 5.`,
+              meta: 'Categoria critica de encuesta'
+            });
+          }
+        });
+      });
+
+      return alerts.sort((a, b) => a.detail.localeCompare(b.detail));
     }
 
     function insightItemTemplate(title, detail, meta, status) {
@@ -834,11 +876,11 @@
 
     function renderSupport() {
       const supports = [
-        ['courses', 'Planes y cursos', supportCourses()],
-        ['answers', 'Feedback', supportAnswers()],
-        ['evidence', 'Evidencias', supportEvidence()],
-        ['prerequisites', 'Prerrequisitos', supportPrerequisites()],
-        ['catalogs', 'Catalogos', supportCatalogs()]
+        ['courses', 'Planes y cursos', supportCourses],
+        ['answers', 'Feedback', supportAnswers],
+        ['evidence', 'Evidencias', supportEvidence],
+        ['prerequisites', 'Prerrequisitos', supportPrerequisites],
+        ['catalogs', 'Catalogos', supportCatalogs]
       ];
 
       document.getElementById('supportTabs').innerHTML = supports.map(([id, label]) => {
@@ -847,16 +889,99 @@
       }).join('');
 
       const active = supports.find(([id]) => id === state.activeSupport) || supports[0];
-      document.getElementById('supportContent').innerHTML = adminToolbarForSupport(active[0]) + active[2];
+      document.getElementById('supportContent').innerHTML = adminToolbarForSupport(active[0]) + renderSupportContent(active[0], active[2]());
 
       document.querySelectorAll('[data-support-tab]').forEach((button) => {
         button.addEventListener('click', () => {
           state.activeSupport = button.dataset.supportTab;
+          state.supportPages[state.activeSupport] = 1;
           renderSupport();
         });
       });
 
+      bindSupportControls();
       bindAdminActionButtons();
+    }
+
+    function renderSupportContent(tableKey, payload) {
+      if (typeof payload === 'string') return payload;
+
+      const query = state.supportFilters[tableKey] || '';
+      const filteredRows = filterSupportRows(payload.rows, query);
+      const pageSize = state.supportPageSize;
+      const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+      const currentPage = Math.min(state.supportPages[tableKey] || 1, totalPages);
+      state.supportPages[tableKey] = currentPage;
+      const start = (currentPage - 1) * pageSize;
+      const pagedRows = filteredRows.slice(start, start + pageSize);
+
+      return `
+        <div class="support-tools">
+          <div class="field">
+            <label for="supportSearch">Filtrar consulta</label>
+            <input id="supportSearch" type="search" value="${escapeHtml(query)}" placeholder="Buscar en ${escapeHtml(payload.label.toLowerCase())}">
+          </div>
+          <div class="field">
+            <label for="supportPageSize">Filas</label>
+            <select id="supportPageSize">
+              ${[5, 10, 20, 50].map((size) => `<option value="${size}" ${size === pageSize ? 'selected' : ''}>${size}</option>`).join('')}
+            </select>
+          </div>
+          <button id="supportClearFilter" class="mini-button" type="button">Limpiar</button>
+        </div>
+        ${editableTable(pagedRows, payload.columns, payload.tableKey, filteredRows.length)}
+        <div class="pagination">
+          <button class="mini-button" type="button" data-support-page="prev" ${currentPage <= 1 ? 'disabled' : ''}>Anterior</button>
+          <span class="pagination-note">Pagina ${currentPage} de ${totalPages} - ${filteredRows.length} registros</span>
+          <button class="mini-button" type="button" data-support-page="next" ${currentPage >= totalPages ? 'disabled' : ''}>Siguiente</button>
+        </div>
+      `;
+    }
+
+    function bindSupportControls() {
+      const search = document.getElementById('supportSearch');
+      if (search) {
+        search.addEventListener('input', () => {
+          state.supportFilters[state.activeSupport] = search.value;
+          state.supportPages[state.activeSupport] = 1;
+          renderSupport();
+        });
+      }
+
+      const pageSize = document.getElementById('supportPageSize');
+      if (pageSize) {
+        pageSize.addEventListener('change', () => {
+          state.supportPageSize = Number(pageSize.value);
+          state.supportPages[state.activeSupport] = 1;
+          renderSupport();
+        });
+      }
+
+      const clear = document.getElementById('supportClearFilter');
+      if (clear) {
+        clear.addEventListener('click', () => {
+          state.supportFilters[state.activeSupport] = '';
+          state.supportPages[state.activeSupport] = 1;
+          renderSupport();
+        });
+      }
+
+      document.querySelectorAll('[data-support-page]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const direction = button.dataset.supportPage === 'next' ? 1 : -1;
+          state.supportPages[state.activeSupport] = Math.max(1, (state.supportPages[state.activeSupport] || 1) + direction);
+          renderSupport();
+        });
+      });
+    }
+
+    function filterSupportRows(rows, query) {
+      const normalized = normalizeText(query);
+      if (!normalized) return rows;
+      return rows.filter((row) => normalizeText(Object.entries(row)
+        .filter(([key]) => key !== '_record')
+        .map(([, value]) => value)
+        .join(' ')).includes(normalized));
     }
 
     function renderAdminHome() {
@@ -882,12 +1007,21 @@
         ['evidence', 'Nueva evidencia', 'Vincula un documento a una fase registrada.'],
         ['plans', 'Nuevo plan', 'Crea una version de plan de estudio.'],
         ['courses', 'Nuevo curso', 'Agrega cursos a un plan curricular.'],
-        ['answers', 'Nueva respuesta', 'Registra feedback de una poblacion objetivo.'],
         ['prerequisites', 'Nuevo prerrequisito', 'Relaciona cursos objetivo y previos.']
       ];
+      const surveyUrl = new URL('encuesta.html', window.location.href).href;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(surveyUrl)}`;
 
       container.innerHTML = `
         <div class="admin-home-body">
+          <div class="survey-qr-card">
+            <img src="${qrUrl}" alt="QR para formulario de encuesta">
+            <div>
+              <strong>Formulario publico de encuesta</strong>
+              <p>Comparte este QR para que estudiantes, egresados o docentes registren feedback. Sus respuestas alimentan el tablero y las alertas.</p>
+              <a class="mini-button" href="./encuesta.html" target="_blank" rel="noopener">Abrir formulario</a>
+            </div>
+          </div>
           <div class="admin-action-grid">
             ${actions.map(([tableKey, title, text]) => `
               <article class="admin-action-card">
@@ -911,12 +1045,11 @@
       const actionBySupport = {
         plans: ['plans', 'Agregar plan'],
         courses: ['courses', 'Agregar curso'],
-        answers: ['answers', 'Agregar respuesta'],
         prerequisites: ['prerequisites', 'Agregar prerrequisito'],
         evidence: ['evidence', 'Agregar evidencia']
       };
       const action = actionBySupport[activeSupport];
-      if (!action) return '<div class="admin-toolbar"><span class="mini muted">Catalogos en modo consulta</span></div>';
+      if (!action) return '<div class="admin-toolbar"><span class="mini muted">Consulta sin creacion manual desde administracion</span></div>';
 
       return `
         <div class="admin-toolbar">
@@ -934,7 +1067,7 @@
         estado: plan.estado,
         _record: plan
       }));
-      return editableTable(rows, ['id', 'version', 'carrera', 'creditos', 'estado'], 'plans');
+      return { label: 'Planes y cursos', rows, columns: ['id', 'version', 'carrera', 'creditos', 'estado'], tableKey: 'plans' };
     }
 
     function supportCourses() {
@@ -948,7 +1081,7 @@
         modalidad: course.modalidad,
         _record: course
       }));
-      return editableTable(rows, ['codigo', 'curso', 'plan', 'area', 'ciclo', 'creditos', 'modalidad'], 'courses');
+      return { label: 'Planes y cursos', rows, columns: ['codigo', 'curso', 'plan', 'area', 'ciclo', 'creditos', 'modalidad'], tableKey: 'courses' };
     }
 
     function supportAnswers() {
@@ -964,7 +1097,7 @@
         comentario: answer.comentario,
         _record: answer
       }));
-      return editableTable(rows, ['fecha', 'plan', 'poblacion', 'categoria', 'puntaje', 'comentario'], 'answers');
+      return { label: 'Feedback', rows, columns: ['fecha', 'plan', 'poblacion', 'categoria', 'puntaje', 'comentario'], tableKey: 'answers' };
     }
 
     function supportPrerequisites() {
@@ -975,7 +1108,7 @@
         regla: item.comentarios_regla,
         _record: item
       }));
-      return editableTable(rows, ['curso', 'requisito', 'regla'], 'prerequisites');
+      return { label: 'Prerrequisitos', rows, columns: ['curso', 'requisito', 'regla'], tableKey: 'prerequisites' };
     }
 
     function supportEvidence() {
@@ -993,7 +1126,7 @@
           _record: doc
         };
       });
-      return editableTable(rows, ['documento', 'expediente', 'paso', 'ruta', 'carga'], 'evidence');
+      return { label: 'Evidencias', rows, columns: ['documento', 'expediente', 'paso', 'ruta', 'carga'], tableKey: 'evidence' };
     }
 
     function supportCatalogs() {

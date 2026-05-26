@@ -44,5 +44,24 @@ Repite la misma idea para las tablas editables:
 - evidencia_documental
 - plan_estudio
 - curso
-- respuesta_encuesta
 - prerrequisito
+
+## Encuesta publica por QR
+
+La pagina `encuesta.html` permite que estudiantes, egresados y docentes registren respuestas sin iniciar sesion. Para que funcione con RLS activo, la tabla `respuesta_encuesta` necesita lectura para el dashboard y permiso de insercion para invitados:
+
+```sql
+create policy "feedback_visible" on respuesta_encuesta
+for select to anon, authenticated using (true);
+
+create policy "feedback_public_insert" on respuesta_encuesta
+for insert to anon with check (true);
+
+create policy "feedback_admin_update" on respuesta_encuesta
+for update to authenticated using (true) with check (true);
+
+create policy "feedback_admin_delete" on respuesta_encuesta
+for delete to authenticated using (true);
+```
+
+Tambien conserva `SELECT` publico en `plan_estudio`, `poblacion_objetivo` y `pregunta_encuesta`, porque el formulario necesita cargar planes, grupos de interes y preguntas.

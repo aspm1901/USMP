@@ -30,6 +30,7 @@
     }
 
     button,
+    a,
     input,
     select {
       font: inherit;
@@ -162,11 +163,13 @@
     .module-nav-button {
       width: 100%;
       min-height: 66px;
+      display: block;
       padding: 11px 12px;
       border: 1px solid transparent;
       border-radius: 7px;
       background: transparent;
       color: var(--ink);
+      text-decoration: none;
       text-align: left;
       cursor: pointer;
     }
@@ -271,6 +274,11 @@
       display: block;
     }
 
+    .alert.is-error {
+      border-color: rgba(180, 35, 24, 0.32);
+      color: var(--danger);
+    }
+
     .metrics {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -326,9 +334,39 @@
 
     .authority-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 14px;
       margin-bottom: 18px;
+    }
+
+    .support-tools {
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) auto auto;
+      gap: 10px;
+      align-items: end;
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcff;
+    }
+
+    .support-tools .field {
+      min-width: 0;
+    }
+
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 12px 14px;
+      border-top: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .pagination-note {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
     }
 
     .insight-card {
@@ -1124,6 +1162,38 @@
       line-height: 1.45;
     }
 
+    .survey-qr-card {
+      display: grid;
+      grid-template-columns: 132px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .survey-qr-card img {
+      width: 132px;
+      height: 132px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .survey-qr-card strong {
+      display: block;
+      font-size: 15px;
+      margin-bottom: 7px;
+    }
+
+    .survey-qr-card p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
     .admin-actions {
       display: none;
       flex-wrap: wrap;
@@ -1150,6 +1220,9 @@
 
     .mini-button {
       min-height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       padding: 0 9px;
       border: 1px solid var(--line-strong);
       border-radius: 6px;
@@ -1157,6 +1230,7 @@
       color: var(--ink);
       font-size: 12px;
       font-weight: 800;
+      text-decoration: none;
       cursor: pointer;
     }
 
@@ -1168,6 +1242,11 @@
     .mini-button.danger {
       border-color: rgba(180, 35, 24, 0.28);
       color: var(--danger);
+    }
+
+    .mini-button:disabled {
+      opacity: 0.48;
+      cursor: not-allowed;
     }
 
     .modal-overlay {
@@ -1246,6 +1325,79 @@
       justify-content: flex-end;
       gap: 10px;
       margin-top: 16px;
+    }
+
+    .survey-page {
+      width: min(980px, calc(100% - 36px));
+    }
+
+    .survey-panel {
+      overflow: hidden;
+    }
+
+    .survey-form {
+      display: grid;
+      gap: 18px;
+      padding: 18px;
+    }
+
+    .question-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .question-card {
+      display: grid;
+      gap: 14px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .question-category {
+      color: var(--usmp-red-strong);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .question-card h3 {
+      margin: 6px 0 0;
+      font-size: 17px;
+      line-height: 1.45;
+    }
+
+    .score-options {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .score-options label {
+      cursor: pointer;
+    }
+
+    .score-options input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .score-options span {
+      min-height: 42px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      background: #fff;
+      font-weight: 800;
+    }
+
+    .score-options input:checked + span {
+      border-color: rgba(178, 34, 34, 0.48);
+      background: rgba(178, 34, 34, 0.1);
+      color: var(--usmp-red-strong);
     }
 
     textarea {
@@ -1358,6 +1510,8 @@
       .metrics,
       .filters,
       .admin-action-grid,
+      .support-tools,
+      .survey-qr-card,
       .summary-grid,
       .timeline-summary,
       .public-status-grid {
@@ -1378,5 +1532,9 @@
 
       .form-grid {
         grid-template-columns: 1fr;
+      }
+
+      .score-options {
+        grid-template-columns: repeat(5, minmax(42px, 1fr));
       }
     }
