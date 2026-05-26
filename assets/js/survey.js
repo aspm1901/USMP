@@ -50,9 +50,10 @@ async function loadSurveyData() {
 }
 
 function renderSurveyForm() {
+  const publicPlans = publicCareerOptions(surveyState.plans);
   document.getElementById('surveyPlan').innerHTML = [
     '<option value="">Seleccionar carrera / plan</option>',
-    ...surveyState.plans.map((plan) => `<option value="${escapeHtml(plan.id_plan)}">${escapeHtml(planLabel(plan))}</option>`)
+    ...publicPlans.map((plan) => `<option value="${escapeHtml(plan.id_plan)}">${escapeHtml(planLabel(plan))}</option>`)
   ].join('');
 
   document.getElementById('surveyPopulation').innerHTML = [
@@ -142,8 +143,40 @@ function planLabel(plan) {
   return plan.nombre_carrera;
 }
 
+function publicCareerOptions(plans) {
+  const priority = {
+    vigente: 5,
+    propuesta: 4,
+    'en revision': 3,
+    historico: 1
+  };
+
+  const bestByCareer = new Map();
+  plans.forEach((plan) => {
+    const career = normalizeText(plan.nombre_carrera);
+    const current = bestByCareer.get(career);
+    if (!current || planRank(plan, priority) > planRank(current, priority)) {
+      bestByCareer.set(career, plan);
+    }
+  });
+
+  return [...bestByCareer.values()].sort((a, b) => a.nombre_carrera.localeCompare(b.nombre_carrera, 'es'));
+}
+
+function planRank(plan, priority) {
+  return (priority[normalizeText(plan.estado)] || 0) * 10000 + Number(plan.anio_version || 0);
+}
+
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
+}
+
+function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
 }
 
 function escapeHtml(value) {
