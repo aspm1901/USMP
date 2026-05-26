@@ -48,7 +48,14 @@ Repite la misma idea para las tablas editables:
 
 ## Encuesta publica por QR
 
-La pagina `encuesta.html` permite que estudiantes, egresados y docentes registren respuestas sin iniciar sesion. Para que funcione con RLS activo, la tabla `respuesta_encuesta` necesita lectura para el dashboard y permiso de insercion para invitados:
+La pagina `encuesta.html` permite que estudiantes, egresados y docentes registren respuestas sin iniciar sesion. Como se valida correo institucional, primero agrega una columna para no perder ese dato:
+
+```sql
+alter table respuesta_encuesta
+add column if not exists correo_institucional varchar;
+```
+
+Para que funcione con RLS activo, la tabla `respuesta_encuesta` necesita lectura para el dashboard y permiso de insercion para invitados:
 
 ```sql
 create policy "feedback_visible" on respuesta_encuesta

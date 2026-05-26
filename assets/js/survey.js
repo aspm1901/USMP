@@ -94,6 +94,12 @@ async function submitSurvey(event) {
   const submit = document.getElementById('surveySubmit');
   const idPlan = Number(form.get('id_plan'));
   const idPopulation = Number(form.get('id_poblacion'));
+  const email = normalizeEmail(form.get('correo_institucional'));
+
+  if (!email.endsWith('@usmp.pe')) {
+    showSurveyMessage('Usa un correo institucional valido con dominio @usmp.pe.', true);
+    return;
+  }
 
   const payload = surveyState.questions.map((question) => ({
     id_pregunta: question.id_pregunta,
@@ -101,6 +107,7 @@ async function submitSurvey(event) {
     id_poblacion: idPopulation,
     valor_respuesta: Number(form.get(`score_${question.id_pregunta}`)),
     comentario: String(form.get(`comment_${question.id_pregunta}`) || '').trim() || null,
+    correo_institucional: email,
     fecha_respuesta: new Date().toISOString()
   }));
 
@@ -115,7 +122,7 @@ async function submitSurvey(event) {
 
   if (error) {
     console.error(error);
-    showSurveyMessage('No se pudo guardar. Si RLS esta activo, permite INSERT anon en respuesta_encuesta.', true);
+    showSurveyMessage('No se pudo guardar. Verifica que respuesta_encuesta tenga la columna correo_institucional y permiso INSERT anon.', true);
     return;
   }
 
@@ -133,6 +140,10 @@ function showSurveyMessage(message, isError) {
 function planLabel(plan) {
   if (!plan) return '-';
   return `${plan.nombre_carrera} ${plan.anio_version} - ${plan.total_creditos_requeridos} cred. - ${plan.estado}`;
+}
+
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
 }
 
 function escapeHtml(value) {

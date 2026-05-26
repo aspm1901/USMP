@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="./assets/css/styles.css?v=10">
+  <link rel="stylesheet" href="./assets/css/styles.css?v=11">
 </head>
 <body>
   <header class="topbar">
@@ -49,10 +49,6 @@
             <span>Consultas</span>
             <small>Modelo de datos</small>
           </button>
-          <a class="module-nav-button" href="./encuesta.html">
-            <span>Encuesta</span>
-            <small>Formulario QR</small>
-          </a>
           <button class="module-nav-button" type="button" data-module-target="admin">
             <span>Administracion</span>
             <small>Solo admin</small>
@@ -122,35 +118,15 @@
             </article>
           </section>
 
-          <section class="authority-grid" aria-label="Lectura para autoridades">
-            <article class="panel insight-card">
-              <div class="panel-header">
-                <h2 class="panel-title">Atencion requerida</h2>
-                <span id="attentionCount" class="panel-note">0 casos</span>
+          <section class="panel insight-switcher" aria-label="Lectura para autoridades">
+            <div class="panel-header">
+              <div>
+                <h2 id="insightPanelTitle" class="panel-title">Atencion requerida</h2>
+                <span id="insightPanelNote" class="panel-note">0 casos</span>
               </div>
-              <div id="attentionList" class="insight-list"></div>
-            </article>
-            <article class="panel insight-card">
-              <div class="panel-header">
-                <h2 class="panel-title">Responsables</h2>
-                <span class="panel-note">Fases registradas</span>
-              </div>
-              <div id="responsibleList" class="insight-list"></div>
-            </article>
-            <article class="panel insight-card">
-              <div class="panel-header">
-                <h2 class="panel-title">Cuellos de botella</h2>
-                <span id="bottleneckCount" class="panel-note">0 alertas</span>
-              </div>
-              <div id="bottleneckList" class="insight-list"></div>
-            </article>
-            <article class="panel insight-card">
-              <div class="panel-header">
-                <h2 class="panel-title">Alertas por feedback</h2>
-                <span id="feedbackAlertCount" class="panel-note">0 alertas</span>
-              </div>
-              <div id="feedbackAlertList" class="insight-list"></div>
-            </article>
+              <div id="insightTabs" class="insight-tabs"></div>
+            </div>
+            <div id="insightPanelList" class="insight-list"></div>
           </section>
 
           <section class="panel compact-legend">
@@ -268,7 +244,7 @@
     </section>
   </div>
 
-  <script src="./assets/js/app.js?v=10"></script>
+  <script src="./assets/js/app.js?v=11"></script>
 </body>
 </html>
 

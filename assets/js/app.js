@@ -27,6 +27,7 @@
       filtered: [],
       selectedId: null,
       activeModule: 'dashboard',
+      activeInsight: 'attention',
       activeDetailTab: 'timeline',
       selectedTimelineStep: {},
       activeSupport: 'courses',
@@ -108,6 +109,7 @@
           { name: 'id_pregunta', label: 'Pregunta', type: 'select', source: 'questions', value: 'id_pregunta', text: (item) => `${item.categoria} - ${item.texto_pregunta}` },
           { name: 'id_plan', label: 'Plan', type: 'select', source: 'plans', value: 'id_plan', text: planLabel },
           { name: 'id_poblacion', label: 'Poblacion', type: 'select', source: 'populations', value: 'id_poblacion', text: (item) => item.tipo_poblacion },
+          { name: 'correo_institucional', label: 'Correo institucional', type: 'email', required: false },
           { name: 'valor_respuesta', label: 'Valor respuesta', type: 'number', min: 1, max: 5 },
           { name: 'comentario', label: 'Comentario', type: 'textarea' },
           { name: 'fecha_respuesta', label: 'Fecha respuesta', type: 'datetime-local' }
@@ -348,26 +350,48 @@
       const attention = attentionItems();
       const bottlenecks = bottleneckItems();
       const feedbackAlerts = feedbackAlertItems();
+      const panels = {
+        attention: {
+          label: 'Atencion requerida',
+          note: `${attention.length} casos`,
+          rows: attention,
+          empty: 'No hay procesos observados ni fases observadas.',
+          status: null
+        },
+        bottlenecks: {
+          label: 'Cuellos de botella',
+          note: `${bottlenecks.length} alertas`,
+          rows: bottlenecks,
+          empty: 'No se detectan brechas criticas con los datos actuales.',
+          status: 'Observado'
+        },
+        feedback: {
+          label: 'Alertas por feedback',
+          note: `${feedbackAlerts.length} alertas`,
+          rows: feedbackAlerts,
+          empty: 'No hay carreras con feedback bajo segun las respuestas actuales.',
+          status: 'Observado'
+        }
+      };
+      const active = panels[state.activeInsight] || panels.attention;
 
-      document.getElementById('attentionCount').textContent = `${attention.length} casos`;
-      document.getElementById('attentionList').innerHTML = attention.length
-        ? attention.slice(0, 5).map((item) => insightItemTemplate(item.title, item.detail, item.meta, item.status)).join('')
-        : emptyTemplate('No hay procesos observados ni fases observadas.');
+      document.getElementById('insightTabs').innerHTML = Object.entries(panels).map(([key, panel]) => `
+        <button class="insight-tab${key === state.activeInsight ? ' is-active' : ''}" type="button" data-insight-tab="${key}">
+          ${escapeHtml(panel.label)} (${panel.rows.length})
+        </button>
+      `).join('');
+      document.getElementById('insightPanelTitle').textContent = active.label;
+      document.getElementById('insightPanelNote').textContent = active.note;
+      document.getElementById('insightPanelList').innerHTML = active.rows.length
+        ? active.rows.slice(0, 6).map((item) => insightItemTemplate(item.title, item.detail, item.meta, active.status || item.status)).join('')
+        : emptyTemplate(active.empty);
 
-      document.getElementById('bottleneckCount').textContent = `${bottlenecks.length} alertas`;
-      document.getElementById('bottleneckList').innerHTML = bottlenecks.length
-        ? bottlenecks.slice(0, 5).map((item) => insightItemTemplate(item.title, item.detail, item.meta, 'Observado')).join('')
-        : emptyTemplate('No se detectan brechas criticas con los datos actuales.');
-
-      const responsible = responsibleSummary();
-      document.getElementById('responsibleList').innerHTML = responsible.length
-        ? responsible.map((item) => insightItemTemplate(item.actor, `${item.count} fase(s) registradas`, item.dependency, 'Aprobado')).join('')
-        : emptyTemplate('Aun no hay responsables registrados.');
-
-      document.getElementById('feedbackAlertCount').textContent = `${feedbackAlerts.length} alertas`;
-      document.getElementById('feedbackAlertList').innerHTML = feedbackAlerts.length
-        ? feedbackAlerts.slice(0, 5).map((item) => insightItemTemplate(item.title, item.detail, item.meta, 'Observado')).join('')
-        : emptyTemplate('No hay carreras con feedback bajo segun las respuestas actuales.');
+      document.querySelectorAll('[data-insight-tab]').forEach((button) => {
+        button.addEventListener('click', () => {
+          state.activeInsight = button.dataset.insightTab;
+          renderAuthorityInsights();
+        });
+      });
     }
 
     function activePeriodLabel() {
@@ -422,24 +446,6 @@
 
         return [...missingBeforeLatest, ...lowEvidence, ...observedComment];
       });
-    }
-
-    function responsibleSummary() {
-      const counts = new Map();
-      state.data.history.forEach((entry) => {
-        const actor = state.data.actors.find((item) => item.id_actor === entry.id_actor);
-        const key = actor?.siglas || 'Sin actor';
-        if (!counts.has(key)) {
-          counts.set(key, {
-            actor: key,
-            dependency: actor?.nombre_dependencia || 'Sin dependencia',
-            count: 0
-          });
-        }
-        counts.get(key).count += 1;
-      });
-
-      return [...counts.values()].sort((a, b) => b.count - a.count);
     }
 
     function feedbackAlertItems() {
@@ -875,13 +881,7 @@
     }
 
     function renderSupport() {
-      const supports = [
-        ['courses', 'Planes y cursos', supportCourses],
-        ['answers', 'Feedback', supportAnswers],
-        ['evidence', 'Evidencias', supportEvidence],
-        ['prerequisites', 'Prerrequisitos', supportPrerequisites],
-        ['catalogs', 'Catalogos', supportCatalogs]
-      ];
+      const supports = supportDefinitions();
 
       document.getElementById('supportTabs').innerHTML = supports.map(([id, label]) => {
         const active = state.activeSupport === id ? ' is-active' : '';
@@ -901,6 +901,22 @@
 
       bindSupportControls();
       bindAdminActionButtons();
+    }
+
+    function supportDefinitions() {
+      return [
+        ['courses', 'Planes y cursos', supportCourses],
+        ['answers', 'Feedback', supportAnswers],
+        ['evidence', 'Evidencias', supportEvidence],
+        ['prerequisites', 'Prerrequisitos', supportPrerequisites],
+        ['catalogs', 'Catalogos', supportCatalogs]
+      ];
+    }
+
+    function activeSupportPayload() {
+      const active = supportDefinitions().find(([id]) => id === state.activeSupport) || supportDefinitions()[0];
+      const payload = active[2]();
+      return typeof payload === 'string' ? null : [active[0], payload];
     }
 
     function renderSupportContent(tableKey, payload) {
@@ -929,6 +945,21 @@
           </div>
           <button id="supportClearFilter" class="mini-button" type="button">Limpiar</button>
         </div>
+        <div id="supportResults">${supportResultsTemplate(tableKey, payload)}</div>
+      `;
+    }
+
+    function supportResultsTemplate(tableKey, payload) {
+      const query = state.supportFilters[tableKey] || '';
+      const filteredRows = filterSupportRows(payload.rows, query);
+      const pageSize = state.supportPageSize;
+      const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+      const currentPage = Math.min(state.supportPages[tableKey] || 1, totalPages);
+      state.supportPages[tableKey] = currentPage;
+      const start = (currentPage - 1) * pageSize;
+      const pagedRows = filteredRows.slice(start, start + pageSize);
+
+      return `
         ${editableTable(pagedRows, payload.columns, payload.tableKey, filteredRows.length)}
         <div class="pagination">
           <button class="mini-button" type="button" data-support-page="prev" ${currentPage <= 1 ? 'disabled' : ''}>Anterior</button>
@@ -938,13 +969,22 @@
       `;
     }
 
+    function renderSupportResultsOnly() {
+      const active = activeSupportPayload();
+      if (!active) return;
+      const [tableKey, payload] = active;
+      document.getElementById('supportResults').innerHTML = supportResultsTemplate(tableKey, payload);
+      bindSupportPagination();
+      bindAdminActionButtons();
+    }
+
     function bindSupportControls() {
       const search = document.getElementById('supportSearch');
       if (search) {
         search.addEventListener('input', () => {
           state.supportFilters[state.activeSupport] = search.value;
           state.supportPages[state.activeSupport] = 1;
-          renderSupport();
+          renderSupportResultsOnly();
         });
       }
 
@@ -966,11 +1006,15 @@
         });
       }
 
+      bindSupportPagination();
+    }
+
+    function bindSupportPagination() {
       document.querySelectorAll('[data-support-page]').forEach((button) => {
         button.addEventListener('click', () => {
           const direction = button.dataset.supportPage === 'next' ? 1 : -1;
           state.supportPages[state.activeSupport] = Math.max(1, (state.supportPages[state.activeSupport] || 1) + direction);
-          renderSupport();
+          renderSupportResultsOnly();
         });
       });
     }
@@ -1090,6 +1134,7 @@
       const plans = mapBy(state.data.plans, 'id_plan');
       const rows = state.data.answers.map((answer) => ({
         fecha: formatDate(answer.fecha_respuesta),
+        correo: answer.correo_institucional || '-',
         plan: planLabel(plans.get(answer.id_plan)),
         poblacion: populations.get(answer.id_poblacion)?.tipo_poblacion || '-',
         categoria: questions.get(answer.id_pregunta)?.categoria || '-',
@@ -1097,7 +1142,7 @@
         comentario: answer.comentario,
         _record: answer
       }));
-      return { label: 'Feedback', rows, columns: ['fecha', 'plan', 'poblacion', 'categoria', 'puntaje', 'comentario'], tableKey: 'answers' };
+      return { label: 'Feedback', rows, columns: ['fecha', 'correo', 'plan', 'poblacion', 'categoria', 'puntaje', 'comentario'], tableKey: 'answers' };
     }
 
     function supportPrerequisites() {

@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="./assets/css/styles.css?v=10">
+  <link rel="stylesheet" href="./assets/css/styles.css?v=11">
 </head>
 <body>
   <header class="topbar">
@@ -21,9 +21,6 @@
           <h1 class="page-title">Encuesta Curricular USMP FIA</h1>
           <p class="page-subtitle">Participacion de estudiantes, egresados y docentes</p>
         </div>
-      </div>
-      <div class="session-actions">
-        <a class="btn btn-light" href="./index.html">Ver plataforma</a>
       </div>
     </div>
   </header>
@@ -48,6 +45,10 @@
       <form id="surveyForm" class="survey-form">
         <div class="section-grid">
           <div class="field">
+            <label for="surveyEmail">Correo institucional</label>
+            <input id="surveyEmail" name="correo_institucional" type="email" placeholder="usuario@usmp.pe" pattern="^[^@\s]+@usmp\.pe$" required>
+          </div>
+          <div class="field">
             <label for="surveyPlan">Carrera / plan</label>
             <select id="surveyPlan" name="id_plan" required></select>
           </div>
@@ -66,6 +67,6 @@
     </section>
   </main>
 
-  <script src="./assets/js/survey.js?v=10"></script>
+  <script src="./assets/js/survey.js?v=11"></script>
 </body>
 </html>

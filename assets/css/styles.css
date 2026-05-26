@@ -339,6 +339,36 @@
       margin-bottom: 18px;
     }
 
+    .insight-switcher {
+      margin-bottom: 18px;
+    }
+
+    .insight-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .insight-tab {
+      min-height: 32px;
+      padding: 0 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .insight-tab.is-active {
+      border-color: rgba(178, 34, 34, 0.36);
+      background: rgba(178, 34, 34, 0.08);
+      color: var(--usmp-red-strong);
+    }
+
     .support-tools {
       display: grid;
       grid-template-columns: minmax(240px, 1fr) auto auto;
