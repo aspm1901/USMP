@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="./assets/css/styles.css?v=6">
+  <link rel="stylesheet" href="./assets/css/styles.css?v=7">
 </head>
 <body>
   <header class="topbar">
@@ -38,6 +38,10 @@
       <span id="connectionMessage">Preparando consulta.</span>
     </section>
 
+    <section class="public-intro" aria-label="Transparencia del proceso">
+      Esta vista permite consultar el avance de modificacion curricular, sus responsables y evidencias registradas.
+    </section>
+
     <section class="metrics" aria-label="Indicadores principales">
       <article class="metric">
         <div class="metric-label">Expedientes</div>
@@ -55,9 +59,53 @@
         <div class="metric-caption">Requieren atencion</div>
       </article>
       <article class="metric">
+        <div class="metric-label">Finalizados</div>
+        <div id="metricDone" class="metric-value">0</div>
+        <div class="metric-caption">Procesos culminados</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">Atencion activa</div>
+        <div id="metricAttention" class="metric-value">0</div>
+        <div class="metric-caption">Observaciones o fases observadas</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">Periodo activo</div>
+        <div id="metricActivePeriod" class="metric-value metric-text">-</div>
+        <div class="metric-caption">Ultimo periodo vigente o futuro</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">Evidencias</div>
+        <div id="metricEvidence" class="metric-value">0</div>
+        <div class="metric-caption">Documentos registrados</div>
+      </article>
+      <article class="metric">
         <div class="metric-label">Feedback promedio</div>
         <div id="metricFeedback" class="metric-value">0.0</div>
         <div class="metric-caption">Escala 1 a 5</div>
+      </article>
+    </section>
+
+    <section class="authority-grid" aria-label="Lectura para autoridades">
+      <article class="panel insight-card">
+        <div class="panel-header">
+          <h2 class="panel-title">Atencion requerida</h2>
+          <span id="attentionCount" class="panel-note">0 casos</span>
+        </div>
+        <div id="attentionList" class="insight-list"></div>
+      </article>
+      <article class="panel insight-card">
+        <div class="panel-header">
+          <h2 class="panel-title">Responsables</h2>
+          <span class="panel-note">Fases registradas</span>
+        </div>
+        <div id="responsibleList" class="insight-list"></div>
+      </article>
+      <article class="panel insight-card">
+        <div class="panel-header">
+          <h2 class="panel-title">Cuellos de botella</h2>
+          <span id="bottleneckCount" class="panel-note">0 alertas</span>
+        </div>
+        <div id="bottleneckList" class="insight-list"></div>
       </article>
     </section>
 
@@ -98,8 +146,8 @@
     <section class="panel support-section">
       <div class="panel-header">
         <div>
-          <h2 class="panel-title">Datos de soporte</h2>
-          <div class="panel-note">Tablas publicas de consulta, sin edicion</div>
+          <h2 class="panel-title">Consultas del modelo</h2>
+          <div class="panel-note">Informacion derivada de las tablas relacionadas</div>
         </div>
       </div>
       <div id="supportTabs" class="support-tabs"></div>
@@ -120,7 +168,7 @@
     </section>
   </div>
 
-  <script src="./assets/js/app.js?v=6"></script>
+  <script src="./assets/js/app.js?v=7"></script>
 </body>
 </html>
 

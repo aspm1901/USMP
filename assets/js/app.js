@@ -299,6 +299,7 @@
     function render() {
       document.body.classList.toggle('admin-mode', state.isAdmin);
       renderMetrics();
+      renderAuthorityInsights();
       renderProcessList();
       renderDetail();
       renderSupport();
@@ -307,12 +308,124 @@
     function renderMetrics() {
       const progress = average(state.processes.map((item) => item.progress));
       const observed = state.processes.filter((item) => normalizeText(item.status).includes('observado')).length;
+      const done = state.processes.filter((item) => normalizeText(item.status).includes('finalizado')).length;
+      const attention = attentionItems().length;
       const feedback = average(state.data.answers.map((item) => Number(item.valor_respuesta)));
+      const activePeriod = activePeriodLabel();
 
       document.getElementById('metricTotal').textContent = state.processes.length;
       document.getElementById('metricProgress').textContent = `${Math.round(progress)}%`;
       document.getElementById('metricObserved').textContent = observed;
+      document.getElementById('metricDone').textContent = done;
+      document.getElementById('metricAttention').textContent = attention;
+      document.getElementById('metricActivePeriod').textContent = activePeriod;
+      document.getElementById('metricEvidence').textContent = state.data.evidence.length;
       document.getElementById('metricFeedback').textContent = feedback ? feedback.toFixed(1) : '0.0';
+    }
+
+    function renderAuthorityInsights() {
+      const attention = attentionItems();
+      const bottlenecks = bottleneckItems();
+
+      document.getElementById('attentionCount').textContent = `${attention.length} casos`;
+      document.getElementById('attentionList').innerHTML = attention.length
+        ? attention.slice(0, 5).map((item) => insightItemTemplate(item.title, item.detail, item.meta, item.status)).join('')
+        : emptyTemplate('No hay procesos observados ni fases observadas.');
+
+      document.getElementById('bottleneckCount').textContent = `${bottlenecks.length} alertas`;
+      document.getElementById('bottleneckList').innerHTML = bottlenecks.length
+        ? bottlenecks.slice(0, 5).map((item) => insightItemTemplate(item.title, item.detail, item.meta, 'Observado')).join('')
+        : emptyTemplate('No se detectan brechas criticas con los datos actuales.');
+
+      const responsible = responsibleSummary();
+      document.getElementById('responsibleList').innerHTML = responsible.length
+        ? responsible.map((item) => insightItemTemplate(item.actor, `${item.count} fase(s) registradas`, item.dependency, 'Aprobado')).join('')
+        : emptyTemplate('Aun no hay responsables registrados.');
+    }
+
+    function activePeriodLabel() {
+      const active = state.data.periods.find((period) => normalizeText(period.estado).includes('activo'));
+      if (active) return active.nombre_periodo;
+
+      const sorted = state.data.periods
+        .slice()
+        .sort((a, b) => new Date(b.fecha_inicio) - new Date(a.fecha_inicio));
+      return sorted[0]?.nombre_periodo || '-';
+    }
+
+    function attentionItems() {
+      return state.processes
+        .filter((item) => isObserved(item.status) || item.history.some((entry) => isObserved(entry.estado_fase)))
+        .map((item) => {
+          const observedPhase = item.history.find((entry) => isObserved(entry.estado_fase));
+          return {
+            title: item.career,
+            detail: observedPhase?.observaciones_revision || item.latest?.observaciones_revision || item.raw.motivo_revision || 'Requiere revision.',
+            meta: `${item.period?.nombre_periodo || 'Sin periodo'} - PC01-${item.id}`,
+            status: observedPhase?.estado_fase || item.status
+          };
+        });
+    }
+
+    function bottleneckItems() {
+      return state.processes.flatMap((item) => {
+        const missingBeforeLatest = item.fullTimeline
+          .filter(({ step, entry }) => !entry && step.numero_paso < item.currentStep)
+          .map(({ step }) => ({
+            title: item.career,
+            detail: `Paso ${step.numero_paso} sin registro antes del ultimo paso documentado.`,
+            meta: step.descripcion_paso
+          }));
+
+        const lowEvidence = !normalizeText(item.status).includes('finalizado') && item.evidence.length === 0
+          ? [{
+              title: item.career,
+              detail: 'Expediente en curso sin evidencias documentales registradas.',
+              meta: `${item.period?.nombre_periodo || 'Sin periodo'} - PC01-${item.id}`
+            }]
+          : [];
+
+        const observedComment = isObserved(item.status)
+          ? [{
+              title: item.career,
+              detail: item.latest?.observaciones_revision || item.raw.motivo_revision || 'Proceso observado sin detalle adicional.',
+              meta: 'Observacion activa'
+            }]
+          : [];
+
+        return [...missingBeforeLatest, ...lowEvidence, ...observedComment];
+      });
+    }
+
+    function responsibleSummary() {
+      const counts = new Map();
+      state.data.history.forEach((entry) => {
+        const actor = state.data.actors.find((item) => item.id_actor === entry.id_actor);
+        const key = actor?.siglas || 'Sin actor';
+        if (!counts.has(key)) {
+          counts.set(key, {
+            actor: key,
+            dependency: actor?.nombre_dependencia || 'Sin dependencia',
+            count: 0
+          });
+        }
+        counts.get(key).count += 1;
+      });
+
+      return [...counts.values()].sort((a, b) => b.count - a.count);
+    }
+
+    function insightItemTemplate(title, detail, meta, status) {
+      return `
+        <article class="insight-item">
+          <div class="insight-top">
+            <strong>${escapeHtml(title)}</strong>
+            ${statusBadge(status)}
+          </div>
+          <p>${escapeHtml(detail || '-')}</p>
+          <span>${escapeHtml(meta || '')}</span>
+        </article>
+      `;
     }
 
     function renderProcessList() {
@@ -394,6 +507,7 @@
             <div class="progress-track"><div class="progress-bar" style="width:${item.progress}%"></div></div>
           </div>
         </div>
+        ${publicStatusTemplate(item)}
         <div class="tabs">
           ${detailTabButton('timeline', 'Trazabilidad')}
           ${detailTabButton('plans', 'Planes y cursos')}
@@ -432,6 +546,65 @@
       return timelineTemplate(item);
     }
 
+    function publicStatusTemplate(item) {
+      const latestActor = item.latest?.actor;
+      const nextStep = nextExpectedStep(item);
+
+      return `
+        <section class="public-status" aria-label="Estado para el usuario">
+          <div>
+            <div class="section-eyebrow">Estado para el usuario</div>
+            <h3>${escapeHtml(publicStatusMessage(item))}</h3>
+            <p>${escapeHtml(item.raw.motivo_revision || 'No se registro motivo de revision.')}</p>
+          </div>
+          <div class="public-status-grid">
+            ${summaryItem('Estado actual', item.status)}
+            ${summaryItem('Ultimo paso', item.latest ? `Paso ${item.latest.step?.numero_paso || item.latest.id_paso}: ${item.latest.estado_fase}` : 'Sin historial')}
+            ${summaryItem('Responsable', latestActor ? `${latestActor.siglas} - ${latestActor.nombre_dependencia}` : 'Sin responsable registrado')}
+            ${summaryItem('Proximo paso esperado', nextStep ? `Paso ${nextStep.numero_paso}: ${nextStep.descripcion_paso}` : 'Proceso culminado o sin siguiente paso')}
+          </div>
+        </section>
+      `;
+    }
+
+    function publicStatusMessage(item) {
+      const status = normalizeText(item.status);
+      if (status.includes('finalizado')) return 'El proceso curricular se encuentra culminado.';
+      if (status.includes('observado')) return 'El proceso requiere correccion o revision antes de continuar.';
+      return 'El proceso curricular se encuentra en evaluacion.';
+    }
+
+    function nextExpectedStep(item) {
+      if (normalizeText(item.status).includes('finalizado')) return null;
+      const latestNumber = item.latest?.step?.numero_paso || 0;
+      return state.data.steps
+        .slice()
+        .sort((a, b) => a.numero_paso - b.numero_paso)
+        .find((step) => step.numero_paso > latestNumber) || null;
+    }
+
+    function timelineSummaryTemplate(item) {
+      const pending = Math.max(0, item.fullTimeline.length - item.registeredSteps);
+      const latestActor = item.latest?.actor;
+      return `
+        <div class="timeline-summary">
+          ${summaryItem('Fases registradas', `${item.registeredSteps} de ${item.fullTimeline.length}`)}
+          ${summaryItem('Fases pendientes', pending)}
+          ${summaryItem('Ultimo responsable', latestActor ? `${latestActor.siglas} - ${latestActor.nombre_dependencia}` : 'Sin responsable')}
+          ${summaryItem('Ultima fecha', item.latest ? formatDate(item.latest.fecha_ejecucion) : 'Sin fecha')}
+        </div>
+      `;
+    }
+
+    function legendItem(status, description) {
+      return `
+        <div class="legend-item">
+          ${statusBadge(status)}
+          <span>${escapeHtml(description)}</span>
+        </div>
+      `;
+    }
+
     function buildFullTimeline(steps, history) {
       const historyByStep = groupBy(history, 'id_paso');
 
@@ -457,6 +630,7 @@
 
       return `
         <div class="timeline-compact">
+          ${timelineSummaryTemplate(item)}
           <div class="timeline-stepper" aria-label="Pasos del proceso PC01">
             ${item.fullTimeline.map(({ step, entry }) => `
               <button class="step-chip${step.id_paso === selected.step.id_paso ? ' is-active' : ''}${entry ? ' is-registered' : ' is-missing'}" type="button" data-timeline-step="${step.id_paso}" title="${escapeHtml(step.descripcion_paso || '')}">
@@ -468,6 +642,12 @@
           <article class="timeline-item timeline-focus${selected.entry ? '' : ' is-missing'}">
             ${timelineEntryTemplate(item, selected.step, selected.entry, selected.extraEntries)}
           </article>
+          <div class="state-legend">
+            ${legendItem('Finalizado', 'Proceso culminado')}
+            ${legendItem('En Curso', 'Proceso en evaluacion')}
+            ${legendItem('Observado', 'Requiere correccion o revision')}
+            ${legendItem('Sin registro', 'Paso aun no documentado')}
+          </div>
         </div>
       `;
     }
@@ -617,12 +797,12 @@
             const step = state.data.steps.find((item) => item.id_paso === history?.id_paso);
             return `
               <article class="evidence-item">
+                <h3 class="evidence-title">${escapeHtml(doc.tipo_documento)}</h3>
                 <div class="timeline-meta">
-                  <span>${escapeHtml(doc.tipo_documento)}</span>
                   <span>${formatDate(doc.fecha_carga)}</span>
-                  <span>Paso ${escapeHtml(step?.numero_paso || '-')}</span>
+                  <span>${step ? `Paso ${step.numero_paso}: ${step.descripcion_paso}` : 'Paso no identificado'}</span>
                 </div>
-                <div class="timeline-note">${escapeHtml(doc.ruta_archivo_pdf)}</div>
+                <div class="timeline-note">Ruta documental: ${escapeHtml(doc.ruta_archivo_pdf)}</div>
                 <div class="admin-actions">
                   <button class="mini-button" type="button" data-admin-action="edit-evidence" data-id="${doc.id_evidencia}">Editar evidencia</button>
                   <button class="mini-button danger" type="button" data-admin-action="delete-evidence" data-id="${doc.id_evidencia}">Eliminar evidencia</button>
@@ -636,11 +816,10 @@
 
     function renderSupport() {
       const supports = [
-        ['plans', 'Planes', supportPlans()],
-        ['courses', 'Cursos', supportCourses()],
-        ['answers', 'Encuestas', supportAnswers()],
-        ['prerequisites', 'Prerrequisitos', supportPrerequisites()],
+        ['courses', 'Planes y cursos', supportCourses()],
+        ['answers', 'Feedback', supportAnswers()],
         ['evidence', 'Evidencias', supportEvidence()],
+        ['prerequisites', 'Prerrequisitos', supportPrerequisites()],
         ['catalogs', 'Catalogos', supportCatalogs()]
       ];
 
@@ -1133,6 +1312,7 @@
       if (status.includes('curso')) return 'status-en-curso';
       if (status.includes('pendiente')) return 'status-pendiente';
       if (status.includes('revision')) return 'status-revision';
+      if (status.includes('sin-registro')) return 'status-missing';
       return 'status-default';
     }
 
