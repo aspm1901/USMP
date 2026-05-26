@@ -1316,6 +1316,11 @@
       return 'status-default';
     }
 
+    function isObserved(value) {
+      const status = normalizeText(value);
+      return status.includes('observado') || status.includes('rechazado');
+    }
+
     function mapBy(records, key) {
       return new Map(records.map((record) => [record[key], record]));
     }
