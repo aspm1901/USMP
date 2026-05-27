@@ -83,7 +83,7 @@ function questionTemplate(question, index) {
       </div>
       <div class="field">
         <label for="comment_${question.id_pregunta}">Comentario opcional</label>
-        <textarea id="comment_${question.id_pregunta}" name="comment_${question.id_pregunta}" placeholder="Puedes comentar una razon, necesidad o sugerencia"></textarea>
+        <textarea id="comment_${question.id_pregunta}" name="comment_${question.id_pregunta}" placeholder="Puedes comentar una razón, necesidad o sugerencia"></textarea>
       </div>
     </article>
   `;
@@ -98,7 +98,7 @@ async function submitSurvey(event) {
   const email = normalizeEmail(form.get('correo_institucional'));
 
   if (!email.endsWith('@usmp.pe')) {
-    showSurveyMessage('Usa un correo institucional valido con dominio @usmp.pe.', true);
+    showSurveyMessage('Usa un correo institucional válido con dominio @usmp.pe.', true);
     return;
   }
 

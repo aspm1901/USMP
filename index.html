@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Vista Externa | Gestion Curricular USMP FIA</title>
+  <title>Vista Externa | Gestión Curricular USMP FIA</title>
   <link rel="icon" type="image/png" href="./logousmp.png?v=3">
   <link rel="shortcut icon" type="image/png" href="./logousmp.png?v=3">
   <link rel="apple-touch-icon" href="./logousmp.png?v=3">
@@ -20,22 +20,22 @@
       <div class="brand">
         <img class="brand-mark" src="./logousmp.png" alt="Logo USMP FIA">
         <div>
-          <h1 class="page-title">Gestion Curricular USMP FIA</h1>
+          <h1 class="page-title">Gestión Curricular USMP FIA</h1>
           <p class="page-subtitle">Vista externa de consulta del proceso PC01</p>
         </div>
       </div>
       <div class="session-actions">
         <div id="sessionBadge" class="readonly-pill">Invitado - Solo lectura</div>
         <button id="loginButton" class="btn btn-light" type="button">Admin</button>
-        <button id="logoutButton" class="btn btn-light is-hidden" type="button">Cerrar sesion</button>
+        <button id="logoutButton" class="btn btn-light is-hidden" type="button">Cerrar sesión</button>
       </div>
     </div>
   </header>
 
   <main class="page">
     <div class="app-shell">
-      <aside class="module-sidebar" aria-label="Navegacion principal">
-        <div class="sidebar-label">Modulos</div>
+      <aside class="module-sidebar" aria-label="Navegación principal">
+        <div class="sidebar-label">Módulos</div>
         <nav class="module-nav">
           <button class="module-nav-button is-active" type="button" data-module-target="dashboard">
             <span>Tablero</span>
@@ -50,7 +50,7 @@
             <small>Modelo de datos</small>
           </button>
           <button class="module-nav-button" type="button" data-module-target="admin">
-            <span>Administracion</span>
+            <span>Administración</span>
             <small>Solo admin</small>
           </button>
         </nav>
@@ -58,7 +58,7 @@
 
       <section class="module-content">
         <section id="connectionAlert" class="alert">
-          <strong>Conexion:</strong>
+          <strong>Conexión:</strong>
           <span id="connectionMessage">Preparando consulta.</span>
         </section>
 
@@ -68,11 +68,11 @@
               <p class="module-kicker">Vista general</p>
               <h2>Tablero ejecutivo</h2>
             </div>
-            <span class="module-note">Lectura rapida para autoridades y transparencia</span>
+            <span class="module-note">Lectura rápida para autoridades y transparencia</span>
           </div>
 
           <section class="public-intro" aria-label="Transparencia del proceso">
-            Esta vista permite consultar el avance de modificacion curricular, sus responsables y evidencias registradas.
+            Esta vista permite consultar el avance de modificación curricular, sus responsables y evidencias registradas.
           </section>
 
           <section class="metrics" aria-label="Indicadores principales">
@@ -84,12 +84,12 @@
             <article class="metric">
               <div class="metric-label">Avance promedio</div>
               <div id="metricProgress" class="metric-value">0%</div>
-              <div class="metric-caption">Segun historial de fases</div>
+              <div class="metric-caption">Según historial de fases</div>
             </article>
             <article class="metric">
               <div class="metric-label">Observados</div>
               <div id="metricObserved" class="metric-value">0</div>
-              <div class="metric-caption">Requieren atencion</div>
+              <div class="metric-caption">Requieren atención</div>
             </article>
             <article class="metric">
               <div class="metric-label">Finalizados</div>
@@ -97,14 +97,14 @@
               <div class="metric-caption">Procesos culminados</div>
             </article>
             <article class="metric">
-              <div class="metric-label">Atencion activa</div>
+              <div class="metric-label">Atención activa</div>
               <div id="metricAttention" class="metric-value">0</div>
               <div class="metric-caption">Observaciones o fases observadas</div>
             </article>
             <article class="metric">
               <div class="metric-label">Periodo activo</div>
               <div id="metricActivePeriod" class="metric-value metric-text">-</div>
-              <div class="metric-caption">Ultimo periodo vigente o futuro</div>
+              <div class="metric-caption">Último periodo vigente o futuro</div>
             </article>
             <article class="metric">
               <div class="metric-label">Evidencias</div>
@@ -121,7 +121,7 @@
           <section class="panel insight-switcher" aria-label="Lectura para autoridades">
             <div class="panel-header">
               <div>
-                <h2 id="insightPanelTitle" class="panel-title">Atencion requerida</h2>
+                <h2 id="insightPanelTitle" class="panel-title">Atención requerida</h2>
                 <span id="insightPanelNote" class="panel-note">0 casos</span>
               </div>
               <div id="insightTabs" class="insight-tabs"></div>
@@ -132,13 +132,13 @@
           <section class="panel compact-legend">
             <div class="panel-header">
               <h2 class="panel-title">Leyenda de estados</h2>
-              <span class="panel-note">Interpretacion publica</span>
+              <span class="panel-note">Interpretación pública</span>
             </div>
             <div class="state-legend">
               <span class="legend-item"><span class="badge status-finalizado">Finalizado</span> Proceso culminado</span>
-              <span class="legend-item"><span class="badge status-en-curso">En Curso</span> Proceso en evaluacion</span>
-              <span class="legend-item"><span class="badge status-observado">Observado</span> Requiere revision</span>
-              <span class="legend-item"><span class="badge status-missing">Sin registro</span> Paso aun no documentado</span>
+              <span class="legend-item"><span class="badge status-en-curso">En curso</span> Proceso en evaluación</span>
+              <span class="legend-item"><span class="badge status-observado">Observado</span> Requiere revisión</span>
+              <span class="legend-item"><span class="badge status-missing">Sin registro</span> Paso aún no documentado</span>
             </div>
           </section>
         </section>
@@ -154,8 +154,8 @@
 
           <section class="filters" aria-label="Filtros">
             <div class="field">
-              <label for="searchInput">Busqueda</label>
-              <input id="searchInput" type="search" placeholder="Buscar carrera, motivo, observacion, curso o evidencia">
+              <label for="searchInput">Búsqueda</label>
+              <input id="searchInput" type="search" placeholder="Buscar carrera, motivo, observación, curso o evidencia">
             </div>
             <div class="field">
               <label for="filterPeriod">Periodo</label>
@@ -200,7 +200,7 @@
             <div class="panel-header">
               <div>
                 <h2 class="panel-title">Consultas del modelo</h2>
-                <div class="panel-note">Informacion derivada de las tablas relacionadas</div>
+                <div class="panel-note">Información derivada de las tablas relacionadas</div>
               </div>
             </div>
             <div id="supportTabs" class="support-tabs"></div>
@@ -211,16 +211,16 @@
         <section class="module-page" data-module-page="admin">
           <div class="module-heading">
             <div>
-              <p class="module-kicker">Gestion interna</p>
-              <h2>Administracion</h2>
+              <p class="module-kicker">Gestión interna</p>
+              <h2>Administración</h2>
             </div>
-            <span class="module-note">Crear, corregir o eliminar registros para la exposicion</span>
+            <span class="module-note">Crear, corregir o eliminar registros para la exposición</span>
           </div>
 
           <section class="panel admin-home">
             <div class="panel-header">
               <div>
-                <h2 class="panel-title">Acciones rapidas</h2>
+                <h2 class="panel-title">Acciones rápidas</h2>
                 <div class="panel-note">Los cambios se guardan directamente en Supabase</div>
               </div>
             </div>

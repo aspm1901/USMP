@@ -36,7 +36,7 @@
       {
         table: TABLES.history,
         title: 'Historial de fase',
-        purpose: 'Registra cada paso ejecutado del PC01, con actor responsable, fecha, estado y observacion.',
+        purpose: 'Registra cada paso ejecutado del PC01, con actor responsable, fecha, estado y observación.',
         pk: ['id_historial'],
         columns: ['id_historial', 'id_proceso', 'id_paso', 'id_actor', 'fecha_ejecucion', 'estado_fase', 'observaciones_revision'],
         relations: [
@@ -56,7 +56,7 @@
       {
         table: TABLES.plans,
         title: 'Plan de estudio',
-        purpose: 'Versiones de mallas curriculares por carrera, creditos requeridos y estado de vigencia.',
+        purpose: 'Versiones de mallas curriculares por carrera, créditos requeridos y estado de vigencia.',
         pk: ['id_plan'],
         columns: ['id_plan', 'anio_version', 'nombre_carrera', 'total_creditos_requeridos', 'estado'],
         relations: []
@@ -64,7 +64,7 @@
       {
         table: TABLES.courses,
         title: 'Curso',
-        purpose: 'Cursos pertenecientes a un plan, clasificados por area academica, ciclo, creditos y modalidad.',
+        purpose: 'Cursos pertenecientes a un plan, clasificados por área académica, ciclo, créditos y modalidad.',
         pk: ['id_curso'],
         columns: ['id_curso', 'id_plan', 'id_area', 'id_ciclo', 'codigo_curso', 'nombre', 'creditos', 'modalidad'],
         relations: [
@@ -99,7 +99,7 @@
       {
         table: TABLES.questions,
         title: 'Pregunta encuesta',
-        purpose: 'Catalogo de preguntas por categoria para medir satisfaccion, tecnologia, malla, empleabilidad e infraestructura.',
+        purpose: 'Catálogo de preguntas por categoría para medir satisfacción, tecnología, malla, empleabilidad e infraestructura.',
         pk: ['id_pregunta'],
         columns: ['id_pregunta', 'categoria', 'texto_pregunta'],
         relations: []
@@ -135,7 +135,7 @@
           { name: 'id_periodo', label: 'Periodo', type: 'select', source: 'periods', value: 'id_periodo', text: (item) => item.nombre_periodo },
           { name: 'fecha_inicio', label: 'Fecha inicio', type: 'date' },
           { name: 'estado_proceso', label: 'Estado', type: 'select-static', options: ['En Curso', 'Observado', 'Finalizado'] },
-          { name: 'motivo_revision', label: 'Motivo de revision', type: 'textarea' }
+          { name: 'motivo_revision', label: 'Motivo de revisión', type: 'textarea' }
         ]
       },
       history: {
@@ -146,7 +146,7 @@
           { name: 'id_proceso', label: 'Expediente', type: 'select', source: 'processes', value: 'id_proceso', text: processOptionLabel },
           { name: 'id_paso', label: 'Paso PC01', type: 'select', source: 'steps', value: 'id_paso', text: (item) => `${item.numero_paso}. ${item.descripcion_paso}` },
           { name: 'id_actor', label: 'Actor', type: 'select', source: 'actors', value: 'id_actor', text: (item) => `${item.siglas} - ${item.nombre_dependencia}` },
-          { name: 'fecha_ejecucion', label: 'Fecha ejecucion', type: 'date' },
+          { name: 'fecha_ejecucion', label: 'Fecha ejecución', type: 'date' },
           { name: 'estado_fase', label: 'Estado fase', type: 'select-static', options: ['Aprobado', 'Observado', 'En Curso', 'Finalizado'] },
           { name: 'observaciones_revision', label: 'Observaciones', type: 'textarea' }
         ]
@@ -156,7 +156,7 @@
         label: 'evidencia',
         pk: 'id_evidencia',
         fields: [
-          { name: 'id_historial', label: 'Fase historica', type: 'select', source: 'history', value: 'id_historial', text: historyOptionLabel },
+          { name: 'id_historial', label: 'Fase histórica', type: 'select', source: 'history', value: 'id_historial', text: historyOptionLabel },
           { name: 'tipo_documento', label: 'Tipo documento', type: 'text' },
           { name: 'ruta_archivo_pdf', label: 'Ruta archivo PDF', type: 'text' },
           { name: 'fecha_carga', label: 'Fecha carga', type: 'datetime-local' }
@@ -167,9 +167,9 @@
         label: 'plan de estudio',
         pk: 'id_plan',
         fields: [
-          { name: 'anio_version', label: 'Anio version', type: 'number' },
+          { name: 'anio_version', label: 'Año versión', type: 'number' },
           { name: 'nombre_carrera', label: 'Carrera', type: 'text' },
-          { name: 'total_creditos_requeridos', label: 'Creditos requeridos', type: 'number' },
+          { name: 'total_creditos_requeridos', label: 'Créditos requeridos', type: 'number' },
           { name: 'estado', label: 'Estado', type: 'select-static', options: ['Historico', 'Vigente', 'En Revision', 'Propuesta'] }
         ]
       },
@@ -179,11 +179,11 @@
         pk: 'id_curso',
         fields: [
           { name: 'id_plan', label: 'Plan', type: 'select', source: 'plans', value: 'id_plan', text: planLabel },
-          { name: 'id_area', label: 'Area', type: 'select', source: 'areas', value: 'id_area', text: (item) => item.nombre_area },
+          { name: 'id_area', label: 'Área', type: 'select', source: 'areas', value: 'id_area', text: (item) => item.nombre_area },
           { name: 'id_ciclo', label: 'Ciclo', type: 'select', source: 'cycles', value: 'id_ciclo', text: (item) => `${item.numero_ciclo}. ${item.denominacion}` },
-          { name: 'codigo_curso', label: 'Codigo', type: 'text' },
+          { name: 'codigo_curso', label: 'Código', type: 'text' },
           { name: 'nombre', label: 'Nombre', type: 'text' },
-          { name: 'creditos', label: 'Creditos', type: 'number' },
+          { name: 'creditos', label: 'Créditos', type: 'number' },
           { name: 'modalidad', label: 'Modalidad', type: 'select-static', options: ['Presencial', 'Semipresencial', 'Virtual'] }
         ]
       },
@@ -194,7 +194,7 @@
         fields: [
           { name: 'id_pregunta', label: 'Pregunta', type: 'select', source: 'questions', value: 'id_pregunta', text: (item) => `${item.categoria} - ${item.texto_pregunta}` },
           { name: 'id_plan', label: 'Plan', type: 'select', source: 'plans', value: 'id_plan', text: planLabel },
-          { name: 'id_poblacion', label: 'Poblacion', type: 'select', source: 'populations', value: 'id_poblacion', text: (item) => item.tipo_poblacion },
+          { name: 'id_poblacion', label: 'Población', type: 'select', source: 'populations', value: 'id_poblacion', text: (item) => item.tipo_poblacion },
           { name: 'correo_institucional', label: 'Correo institucional', type: 'email', required: false },
           { name: 'valor_respuesta', label: 'Valor respuesta', type: 'number', min: 1, max: 5 },
           { name: 'comentario', label: 'Comentario', type: 'textarea' },
@@ -217,7 +217,7 @@
 
     async function init() {
       bindEvents();
-      showConnectionMessage('Cargando informacion desde Supabase...');
+      showConnectionMessage('Cargando información desde Supabase...');
 
       try {
         state.client = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
@@ -438,7 +438,7 @@
       const feedbackAlerts = feedbackAlertItems();
       const panels = {
         attention: {
-          label: 'Atencion requerida',
+          label: 'Atención requerida',
           note: `${attention.length} casos`,
           rows: attention,
           empty: 'No hay procesos observados ni fases observadas.',
@@ -448,14 +448,14 @@
           label: 'Cuellos de botella',
           note: `${bottlenecks.length} alertas`,
           rows: bottlenecks,
-          empty: 'No se detectan brechas criticas con los datos actuales.',
+          empty: 'No se detectan brechas críticas con los datos actuales.',
           status: 'Observado'
         },
         feedback: {
           label: 'Alertas por feedback',
           note: `${feedbackAlerts.length} alertas`,
           rows: feedbackAlerts,
-          empty: 'No hay carreras con feedback bajo segun las respuestas actuales.',
+          empty: 'No hay carreras con feedback bajo según las respuestas actuales.',
           status: 'Observado'
         }
       };
@@ -497,7 +497,7 @@
           const observedPhase = item.history.find((entry) => isObserved(entry.estado_fase));
           return {
             title: item.career,
-            detail: observedPhase?.observaciones_revision || item.latest?.observaciones_revision || item.raw.motivo_revision || 'Requiere revision.',
+            detail: displayText(observedPhase?.observaciones_revision || item.latest?.observaciones_revision || item.raw.motivo_revision || 'Requiere revisión.'),
             meta: `${item.period?.nombre_periodo || 'Sin periodo'} - PC01-${item.id}`,
             status: observedPhase?.estado_fase || item.status
           };
@@ -510,8 +510,8 @@
           .filter(({ step, entry }) => !entry && step.numero_paso < item.currentStep)
           .map(({ step }) => ({
             title: item.career,
-            detail: `Paso ${step.numero_paso} sin registro antes del ultimo paso documentado.`,
-            meta: step.descripcion_paso
+            detail: `Paso ${step.numero_paso} sin registro antes del último paso documentado.`,
+            meta: displayText(step.descripcion_paso)
           }));
 
         const lowEvidence = !normalizeText(item.status).includes('finalizado') && item.evidence.length === 0
@@ -525,8 +525,8 @@
         const observedComment = isObserved(item.status)
           ? [{
               title: item.career,
-              detail: item.latest?.observaciones_revision || item.raw.motivo_revision || 'Proceso observado sin detalle adicional.',
-              meta: 'Observacion activa'
+              detail: displayText(item.latest?.observaciones_revision || item.raw.motivo_revision || 'Proceso observado sin detalle adicional.'),
+              meta: 'Observación activa'
             }]
           : [];
 
@@ -545,20 +545,20 @@
         const avg = average(answers.map((item) => Number(item.valor_respuesta)));
         if (avg > 0 && avg < 3) {
           alerts.push({
-            title: plan?.nombre_carrera || `Plan ${planId}`,
+            title: displayText(plan?.nombre_carrera || `Plan ${planId}`),
             detail: `Feedback promedio bajo: ${avg.toFixed(1)} de 5. Conviene revisar comentarios y causas recurrentes.`,
             meta: planLabel(plan)
           });
         }
 
-        const byCategory = groupBy(answers, (answer) => questions.get(answer.id_pregunta)?.categoria || 'Sin categoria');
+        const byCategory = groupBy(answers, (answer) => questions.get(answer.id_pregunta)?.categoria || 'Sin categoría');
         byCategory.forEach((categoryAnswers, category) => {
           const categoryAvg = average(categoryAnswers.map((item) => Number(item.valor_respuesta)));
           if (categoryAvg > 0 && categoryAvg < 3) {
             alerts.push({
-              title: plan?.nombre_carrera || `Plan ${planId}`,
+              title: displayText(plan?.nombre_carrera || `Plan ${planId}`),
               detail: `${category}: promedio ${categoryAvg.toFixed(1)} de 5.`,
-              meta: 'Categoria critica de encuesta'
+              meta: 'Categoría crítica de encuesta'
             });
           }
         });
@@ -604,7 +604,7 @@
           <div class="process-top">
             <div>
               <div class="process-code">Expediente PC01-${item.id}</div>
-              <div class="process-career">${escapeHtml(item.career)}</div>
+              <div class="process-career">${escapeHtml(displayText(item.career))}</div>
             </div>
             ${statusBadge(item.status)}
           </div>
@@ -616,7 +616,7 @@
           <div class="progress-wrap">
             <div class="progress-track"><div class="progress-bar" style="width:${item.progress}%"></div></div>
           </div>
-          <div class="process-reason">${escapeHtml(item.raw.motivo_revision || 'Sin motivo registrado')}</div>
+          <div class="process-reason">${escapeHtml(displayText(item.raw.motivo_revision || 'Sin motivo registrado'))}</div>
         </button>
       `;
     }
@@ -634,8 +634,8 @@
         <div class="hero fade-in">
           <div class="hero-row">
             <div>
-              <h2>${escapeHtml(item.career)}</h2>
-              <p class="reason">${escapeHtml(item.raw.motivo_revision || 'Sin motivo registrado.')}</p>
+              <h2>${escapeHtml(displayText(item.career))}</h2>
+              <p class="reason">${escapeHtml(displayText(item.raw.motivo_revision || 'Sin motivo registrado.'))}</p>
               <div class="admin-actions">
                 <button class="mini-button" type="button" data-admin-action="edit-process" data-id="${item.id}">Editar expediente</button>
                 <button class="mini-button danger" type="button" data-admin-action="delete-process" data-id="${item.id}">Eliminar expediente</button>
@@ -649,7 +649,7 @@
             ${summaryItem('Periodo', item.period?.nombre_periodo || 'Sin periodo')}
             ${summaryItem('Plan evaluado', planLabel(item.evaluatedPlan))}
             ${summaryItem('Plan nuevo', planLabel(item.newPlan))}
-            ${summaryItem('Ultima fase', item.latest ? `Paso ${item.latest.step?.numero_paso || item.latest.id_paso}: ${item.latest.estado_fase}` : 'Sin historial')}
+            ${summaryItem('Última fase', item.latest ? `Paso ${item.latest.step?.numero_paso || item.latest.id_paso}: ${displayText(item.latest.estado_fase)}` : 'Sin historial')}
           </div>
           <div class="progress-wrap">
             <div class="progress-label">
@@ -707,13 +707,13 @@
           <div>
             <div class="section-eyebrow">Estado para el usuario</div>
             <h3>${escapeHtml(publicStatusMessage(item))}</h3>
-            <p>${escapeHtml(item.raw.motivo_revision || 'No se registro motivo de revision.')}</p>
+            <p>${escapeHtml(displayText(item.raw.motivo_revision || 'No se registró motivo de revisión.'))}</p>
           </div>
           <div class="public-status-grid">
-            ${summaryItem('Estado actual', item.status)}
-            ${summaryItem('Ultimo paso', item.latest ? `Paso ${item.latest.step?.numero_paso || item.latest.id_paso}: ${item.latest.estado_fase}` : 'Sin historial')}
+            ${summaryItem('Estado actual', displayText(item.status))}
+            ${summaryItem('Último paso', item.latest ? `Paso ${item.latest.step?.numero_paso || item.latest.id_paso}: ${displayText(item.latest.estado_fase)}` : 'Sin historial')}
             ${summaryItem('Responsable', latestActor ? `${latestActor.siglas} - ${latestActor.nombre_dependencia}` : 'Sin responsable registrado')}
-            ${summaryItem('Proximo paso esperado', nextStep ? `Paso ${nextStep.numero_paso}: ${nextStep.descripcion_paso}` : 'Proceso culminado o sin siguiente paso')}
+            ${summaryItem('Próximo paso esperado', nextStep ? `Paso ${nextStep.numero_paso}: ${displayText(nextStep.descripcion_paso)}` : 'Proceso culminado o sin siguiente paso')}
           </div>
         </section>
       `;
@@ -722,8 +722,8 @@
     function publicStatusMessage(item) {
       const status = normalizeText(item.status);
       if (status.includes('finalizado')) return 'El proceso curricular se encuentra culminado.';
-      if (status.includes('observado')) return 'El proceso requiere correccion o revision antes de continuar.';
-      return 'El proceso curricular se encuentra en evaluacion.';
+      if (status.includes('observado')) return 'El proceso requiere corrección o revisión antes de continuar.';
+      return 'El proceso curricular se encuentra en evaluación.';
     }
 
     function nextExpectedStep(item) {
@@ -742,8 +742,8 @@
         <div class="timeline-summary">
           ${summaryItem('Fases registradas', `${item.registeredSteps} de ${item.fullTimeline.length}`)}
           ${summaryItem('Fases pendientes', pending)}
-          ${summaryItem('Ultimo responsable', latestActor ? `${latestActor.siglas} - ${latestActor.nombre_dependencia}` : 'Sin responsable')}
-          ${summaryItem('Ultima fecha', item.latest ? formatDate(item.latest.fecha_ejecucion) : 'Sin fecha')}
+          ${summaryItem('Último responsable', latestActor ? `${latestActor.siglas} - ${latestActor.nombre_dependencia}` : 'Sin responsable')}
+          ${summaryItem('Última fecha', item.latest ? formatDate(item.latest.fecha_ejecucion) : 'Sin fecha')}
         </div>
       `;
     }
@@ -785,7 +785,7 @@
           ${timelineSummaryTemplate(item)}
           <div class="timeline-stepper" aria-label="Pasos del proceso PC01">
             ${item.fullTimeline.map(({ step, entry }) => `
-              <button class="step-chip${step.id_paso === selected.step.id_paso ? ' is-active' : ''}${entry ? ' is-registered' : ' is-missing'}" type="button" data-timeline-step="${step.id_paso}" title="${escapeHtml(step.descripcion_paso || '')}">
+              <button class="step-chip${step.id_paso === selected.step.id_paso ? ' is-active' : ''}${entry ? ' is-registered' : ' is-missing'}" type="button" data-timeline-step="${step.id_paso}" title="${escapeHtml(displayText(step.descripcion_paso || ''))}">
                 <span>${step.numero_paso}</span>
                 <small>${entry ? entry.estado_fase : 'Sin registro'}</small>
               </button>
@@ -796,9 +796,9 @@
           </article>
           <div class="state-legend">
             ${legendItem('Finalizado', 'Proceso culminado')}
-            ${legendItem('En Curso', 'Proceso en evaluacion')}
-            ${legendItem('Observado', 'Requiere correccion o revision')}
-            ${legendItem('Sin registro', 'Paso aun no documentado')}
+            ${legendItem('En curso', 'Proceso en evaluación')}
+            ${legendItem('Observado', 'Requiere corrección o revisión')}
+            ${legendItem('Sin registro', 'Paso aún no documentado')}
           </div>
         </div>
       `;
@@ -808,15 +808,15 @@
       return `
               <div class="step-number">${step.numero_paso}</div>
               <div>
-                <h3 class="timeline-title">${escapeHtml(step.descripcion_paso || 'Paso sin descripcion')}</h3>
+                <h3 class="timeline-title">${escapeHtml(displayText(step.descripcion_paso || 'Paso sin descripción'))}</h3>
                 <div class="timeline-meta">
                   <span>${statusBadge(entry?.estado_fase || 'Sin registro')}</span>
                   <span>${entry ? formatDate(entry.fecha_ejecucion) : 'Fecha pendiente'}</span>
                   <span>${entry ? `${escapeHtml(entry.actor?.siglas || 'Actor')} - ${escapeHtml(entry.actor?.nombre_dependencia || 'Sin dependencia')}` : 'Sin actor registrado'}</span>
                   <span>${entry ? entry.evidence.length : 0} evidencia(s)</span>
                 </div>
-                <div class="timeline-note">${escapeHtml(entry?.observaciones_revision || 'Este paso aun no tiene registro en historial_fase para este expediente.')}</div>
-                ${entry?.evidence?.length ? `<div class="timeline-meta">${entry.evidence.map((doc) => `<span>${escapeHtml(doc.tipo_documento)} - ${escapeHtml(doc.ruta_archivo_pdf)}</span>`).join('')}</div>` : ''}
+                <div class="timeline-note">${escapeHtml(displayText(entry?.observaciones_revision || 'Este paso aún no tiene registro en historial_fase para este expediente.'))}</div>
+                ${entry?.evidence?.length ? `<div class="timeline-meta">${entry.evidence.map((doc) => `<span>${escapeHtml(displayText(doc.tipo_documento))} - ${escapeHtml(doc.ruta_archivo_pdf)}</span>`).join('')}</div>` : ''}
                 ${extraEntries.length ? `<div class="timeline-meta"><span>${extraEntries.length} registro(s) adicional(es) en este paso</span></div>` : ''}
                 <div class="admin-actions">
                   ${entry
@@ -842,9 +842,9 @@
       ].map(([type, plan]) => ({
         tipo: type,
         version: plan?.anio_version || '-',
-        carrera: plan?.nombre_carrera || '-',
+        carrera: displayText(plan?.nombre_carrera || '-'),
         creditos: plan?.total_creditos_requeridos || '-',
-        estado: plan?.estado || '-'
+        estado: displayText(plan?.estado || '-')
       }));
 
       const courses = item.courses
@@ -854,17 +854,17 @@
       return `
         <div class="section-grid">
           <div class="info-card">
-            <div class="info-card-header">Comparacion de planes</div>
+            <div class="info-card-header">Comparación de planes</div>
             <div class="info-card-body">${simpleTable(planRows, ['tipo', 'version', 'carrera', 'creditos', 'estado'])}</div>
           </div>
           <div class="info-card">
-            <div class="info-card-header">Lectura rapida</div>
+            <div class="info-card-header">Lectura rápida</div>
             <div class="info-card-body">
               <div class="summary-grid">
                 ${summaryItem('Cursos visibles', courses.length)}
-                ${summaryItem('Creditos en cursos', sum(courses.map((course) => course.creditos)))}
+                ${summaryItem('Créditos en cursos', sum(courses.map((course) => course.creditos)))}
                 ${summaryItem('Modalidades', unique(courses.map((course) => course.modalidad)).join(', ') || '-')}
-                ${summaryItem('Areas', unique(courses.map((course) => areaName(course.id_area))).length)}
+                ${summaryItem('Áreas', unique(courses.map((course) => areaName(course.id_area))).length)}
               </div>
             </div>
           </div>
@@ -880,11 +880,11 @@
       return `
         <article class="course-card">
           <div class="course-code">${escapeHtml(course.codigo_curso)} - Plan ${escapeHtml(plan?.anio_version || course.id_plan)}</div>
-          <div class="course-name">${escapeHtml(course.nombre)}</div>
+          <div class="course-name">${escapeHtml(displayText(course.nombre))}</div>
           <div class="course-meta">
             <span>${escapeHtml(cycle?.denominacion || `Ciclo ${course.id_ciclo}`)}</span>
             <span>${escapeHtml(areaName(course.id_area))}</span>
-            <span>${course.creditos} creditos</span>
+            <span>${course.creditos} créditos</span>
             <span>${escapeHtml(course.modalidad)}</span>
           </div>
           <div class="admin-actions">
@@ -900,7 +900,7 @@
 
       const questions = mapBy(state.data.questions, 'id_pregunta');
       const populations = mapBy(state.data.populations, 'id_poblacion');
-      const grouped = groupBy(item.answers, (answer) => questions.get(answer.id_pregunta)?.categoria || 'Sin categoria');
+      const grouped = groupBy(item.answers, (answer) => questions.get(answer.id_pregunta)?.categoria || 'Sin categoría');
       const scoreCards = Array.from(grouped.entries()).map(([category, answers]) => {
         const avg = average(answers.map((answer) => Number(answer.valor_respuesta)));
         return `
@@ -922,13 +922,13 @@
           return `
             <article class="comment-item">
               <div class="timeline-meta">
-                <span>${escapeHtml(population?.tipo_poblacion || 'Poblacion')}</span>
-                <span>${escapeHtml(question?.categoria || 'Categoria')}</span>
+                <span>${escapeHtml(displayText(population?.tipo_poblacion || 'Población'))}</span>
+                <span>${escapeHtml(displayText(question?.categoria || 'Categoría'))}</span>
                 <span>Puntaje ${answer.valor_respuesta}/5</span>
                 <span>${formatDate(answer.fecha_respuesta)}</span>
               </div>
               <div class="timeline-note">${escapeHtml(answer.comentario || 'Sin comentario.')}</div>
-              <div class="mini muted">${escapeHtml(question?.texto_pregunta || '')}</div>
+              <div class="mini muted">${escapeHtml(displayText(question?.texto_pregunta || ''))}</div>
             </article>
           `;
         }).join('');
@@ -952,7 +952,7 @@
                 <h3 class="evidence-title">${escapeHtml(doc.tipo_documento)}</h3>
                 <div class="timeline-meta">
                   <span>${formatDate(doc.fecha_carga)}</span>
-                  <span>${step ? `Paso ${step.numero_paso}: ${step.descripcion_paso}` : 'Paso no identificado'}</span>
+                  <span>${step ? `Paso ${step.numero_paso}: ${displayText(step.descripcion_paso)}` : 'Paso no identificado'}</span>
                 </div>
                 <div class="timeline-note">Ruta documental: ${escapeHtml(doc.ruta_archivo_pdf)}</div>
                 <div class="admin-actions">
@@ -995,9 +995,9 @@
         ['answers', 'Feedback', supportAnswers],
         ['evidence', 'Evidencias', supportEvidence],
         ['prerequisites', 'Prerrequisitos', supportPrerequisites],
-        ['catalogs', 'Catalogos', supportCatalogs],
+        ['catalogs', 'Catálogos', supportCatalogs],
         ['dictionary', 'Diccionario BD', supportDictionary],
-        ['integrity', 'Auditoria BD', supportIntegrity]
+        ['integrity', 'Auditoría BD', supportIntegrity]
       ];
     }
 
@@ -1051,7 +1051,7 @@
         ${editableTable(pagedRows, payload.columns, payload.tableKey, filteredRows.length)}
         <div class="pagination">
           <button class="mini-button" type="button" data-support-page="prev" ${currentPage <= 1 ? 'disabled' : ''}>Anterior</button>
-          <span class="pagination-note">Pagina ${currentPage} de ${totalPages} - ${filteredRows.length} registros</span>
+          <span class="pagination-note">Página ${currentPage} de ${totalPages} - ${filteredRows.length} registros</span>
           <button class="mini-button" type="button" data-support-page="next" ${currentPage >= totalPages ? 'disabled' : ''}>Siguiente</button>
         </div>
       `;
@@ -1124,7 +1124,7 @@
         container.innerHTML = `
           <div class="admin-home-body">
             <div class="admin-login-note">
-              Para modificar datos inicia sesion como administrador. En modo invitado la plataforma queda como consulta publica, sin botones de crear, editar ni eliminar.
+              Para modificar datos inicia sesión como administrador. En modo invitado la plataforma queda como consulta pública, sin botones de crear, editar ni eliminar.
             </div>
             <button id="adminModuleLogin" class="btn" type="button">Ingresar como admin</button>
           </div>
@@ -1137,7 +1137,7 @@
         ['processes', 'Nuevo expediente', 'Registra un proceso curricular PC01.'],
         ['history', 'Nueva fase', 'Agrega un paso ejecutado dentro de la trazabilidad.'],
         ['evidence', 'Nueva evidencia', 'Vincula un documento a una fase registrada.'],
-        ['plans', 'Nuevo plan', 'Crea una version de plan de estudio.'],
+        ['plans', 'Nuevo plan', 'Crea una versión de plan de estudio.'],
         ['courses', 'Nuevo curso', 'Agrega cursos a un plan curricular.'],
         ['prerequisites', 'Nuevo prerrequisito', 'Relaciona cursos objetivo y previos.']
       ];
@@ -1149,7 +1149,7 @@
           <div class="survey-qr-card">
             <img src="${qrUrl}" alt="QR para formulario de encuesta">
             <div>
-              <strong>Formulario publico de encuesta</strong>
+              <strong>Formulario público de encuesta</strong>
               <p>Comparte este QR para que estudiantes, egresados o docentes registren feedback. Sus respuestas alimentan el tablero y las alertas.</p>
               <a class="mini-button" href="./encuesta.html" target="_blank" rel="noopener">Abrir formulario</a>
             </div>
@@ -1166,7 +1166,7 @@
             `).join('')}
           </div>
           <div class="admin-login-note">
-            Para editar o eliminar registros existentes usa el modulo Consultas o el detalle del expediente seleccionado.
+            Para editar o eliminar registros existentes usa el módulo Consultas o el detalle del expediente seleccionado.
           </div>
         </div>
       `;
@@ -1181,7 +1181,7 @@
         evidence: ['evidence', 'Agregar evidencia']
       };
       const action = actionBySupport[activeSupport];
-      if (!action) return '<div class="admin-toolbar"><span class="mini muted">Consulta sin creacion manual desde administracion</span></div>';
+      if (!action) return '<div class="admin-toolbar"><span class="mini muted">Consulta sin creación manual desde administración</span></div>';
 
       return `
         <div class="admin-toolbar">
@@ -1194,9 +1194,9 @@
       const rows = state.data.plans.map((plan) => ({
         id: plan.id_plan,
         version: plan.anio_version,
-        carrera: plan.nombre_carrera,
+        carrera: displayText(plan.nombre_carrera),
         creditos: plan.total_creditos_requeridos,
-        estado: plan.estado,
+        estado: displayText(plan.estado),
         _record: plan
       }));
       return { label: 'Planes y cursos', rows, columns: ['id', 'version', 'carrera', 'creditos', 'estado'], tableKey: 'plans' };
@@ -1224,8 +1224,8 @@
         fecha: formatDate(answer.fecha_respuesta),
         correo: answer.correo_institucional || '-',
         plan: planLabel(plans.get(answer.id_plan)),
-        poblacion: populations.get(answer.id_poblacion)?.tipo_poblacion || '-',
-        categoria: questions.get(answer.id_pregunta)?.categoria || '-',
+        poblacion: displayText(populations.get(answer.id_poblacion)?.tipo_poblacion || '-'),
+        categoria: displayText(questions.get(answer.id_pregunta)?.categoria || '-'),
         puntaje: `${answer.valor_respuesta}/5`,
         comentario: answer.comentario,
         _record: answer
@@ -1236,8 +1236,8 @@
     function supportPrerequisites() {
       const courses = mapBy(state.data.courses, 'id_curso');
       const rows = state.data.prerequisites.map((item) => ({
-        curso: courses.get(item.id_curso_objetivo)?.nombre || item.id_curso_objetivo,
-        requisito: courses.get(item.id_curso_previo)?.nombre || item.id_curso_previo,
+        curso: displayText(courses.get(item.id_curso_objetivo)?.nombre || item.id_curso_objetivo),
+        requisito: displayText(courses.get(item.id_curso_previo)?.nombre || item.id_curso_previo),
         regla: item.comentarios_regla,
         _record: item
       }));
@@ -1253,7 +1253,7 @@
         return {
           documento: doc.tipo_documento,
           expediente: entry ? `PC01-${entry.id_proceso}` : '-',
-          paso: step ? `${step.numero_paso}. ${step.descripcion_paso}` : '-',
+          paso: step ? `${step.numero_paso}. ${displayText(step.descripcion_paso)}` : '-',
           ruta: doc.ruta_archivo_pdf,
           carga: formatDate(doc.fecha_carga),
           _record: doc
@@ -1266,8 +1266,8 @@
       return `
         <div class="section-grid">
           <div class="info-card"><div class="info-card-header">Actores</div><div class="info-card-body">${simpleTable(state.data.actors, ['siglas', 'nombre_dependencia'])}</div></div>
-          <div class="info-card"><div class="info-card-header">Areas academicas</div><div class="info-card-body">${simpleTable(state.data.areas, ['nombre_area', 'color_hexadecimal'])}</div></div>
-          <div class="info-card"><div class="info-card-header">Ciclos academicos</div><div class="info-card-body">${simpleTable(state.data.cycles, ['numero_ciclo', 'denominacion'])}</div></div>
+          <div class="info-card"><div class="info-card-header">Áreas académicas</div><div class="info-card-body">${simpleTable(state.data.areas, ['nombre_area', 'color_hexadecimal'])}</div></div>
+          <div class="info-card"><div class="info-card-header">Ciclos académicos</div><div class="info-card-body">${simpleTable(state.data.cycles, ['numero_ciclo', 'denominacion'])}</div></div>
           <div class="info-card"><div class="info-card-header">Periodos</div><div class="info-card-body">${simpleTable(state.data.periods, ['nombre_periodo', 'fecha_inicio', 'fecha_fin', 'estado'])}</div></div>
           <div class="info-card"><div class="info-card-header">Pasos PC01</div><div class="info-card-body">${simpleTable(state.data.steps, ['numero_paso', 'descripcion_paso'])}</div></div>
           <div class="info-card"><div class="info-card-header">Poblaciones objetivo</div><div class="info-card-body">${simpleTable(state.data.populations, ['tipo_poblacion'])}</div></div>
@@ -1295,7 +1295,7 @@
               <div class="relation-list">
                 ${entity.relations.length
                   ? entity.relations.map((relation) => `<div>${escapeHtml(relation)}</div>`).join('')
-                  : '<div>Tabla catalogo sin llave foranea directa.</div>'}
+                  : '<div>Tabla catálogo sin llave foránea directa.</div>'}
               </div>
             </article>
           `).join('')}
@@ -1311,7 +1311,7 @@
           <article class="audit-card">
             <span class="summary-label">Tablas revisadas</span>
             <strong>${DB_DICTIONARY.length}</strong>
-            <p>Validacion cruzada entre entidades principales y tablas catalogo.</p>
+            <p>Validación cruzada entre entidades principales y tablas catálogo.</p>
           </article>
           <article class="audit-card">
             <span class="summary-label">Hallazgos</span>
@@ -1327,7 +1327,7 @@
       `;
 
       if (!issues.length) {
-        return `${summary}${emptyTemplate('La auditoria no encontro referencias huerfanas ni duplicados criticos con los datos actuales.')}`;
+        return `${summary}${emptyTemplate('La auditoría no encontró referencias huérfanas ni duplicados críticos con los datos actuales.')}`;
       }
 
       return `${summary}${simpleTable(issues, ['entidad', 'registro', 'regla', 'detalle', 'estado'])}`;
@@ -1392,7 +1392,7 @@
             entidad: 'prerrequisito',
             registro: `${item.id_curso_objetivo} <- ${item.id_curso_previo}`,
             regla: 'autorreferencia',
-            detalle: 'Un curso no deberia ser prerrequisito de si mismo.',
+            detalle: 'Un curso no debería ser prerrequisito de sí mismo.',
             estado: 'Revisar'
           });
         }
@@ -1405,8 +1405,8 @@
           issues.push({
             entidad: 'curso',
             registro: records.map((course) => course.id_curso).join(', '),
-            regla: 'codigo unico por plan',
-            detalle: `El codigo ${records[0].codigo_curso} aparece ${records.length} veces en el mismo plan.`,
+            regla: 'código único por plan',
+            detalle: `El código ${records[0].codigo_curso} aparece ${records.length} veces en el mismo plan.`,
             estado: 'Duplicado'
           });
         }
@@ -1423,7 +1423,7 @@
         registro: record,
         regla: `${field} -> ${targetTable}`,
         detalle: `No existe el valor referenciado: ${value}.`,
-        estado: 'Referencia huerfana'
+        estado: 'Referencia huérfana'
       });
     }
 
@@ -1431,7 +1431,7 @@
       return `
         <div class="summary-item">
           <div class="summary-label">${escapeHtml(label)}</div>
-          <div class="summary-value">${escapeHtml(String(value ?? '-'))}</div>
+          <div class="summary-value">${escapeHtml(displayText(String(value ?? '-')))}</div>
         </div>
       `;
     }
@@ -1445,7 +1445,7 @@
             <thead><tr>${columns.map((column) => `<th>${escapeHtml(labelize(column))}</th>`).join('')}</tr></thead>
             <tbody>
               ${rows.map((row) => `
-                <tr>${columns.map((column) => `<td>${escapeHtml(row[column] ?? '-')}</td>`).join('')}</tr>
+                <tr>${columns.map((column) => `<td>${escapeHtml(displayText(row[column] ?? '-'))}</td>`).join('')}</tr>
               `).join('')}
             </tbody>
           </table>
@@ -1471,7 +1471,7 @@
                 const recordId = encodeRecordId(config, row._record);
                 return `
                   <tr>
-                    ${columns.map((column) => `<td>${escapeHtml(row[column] ?? '-')}</td>`).join('')}
+                    ${columns.map((column) => `<td>${escapeHtml(displayText(row[column] ?? '-'))}</td>`).join('')}
                     <td class="action-cell admin-only">
                       <button class="mini-button" type="button" data-admin-action="edit-record" data-table-key="${tableKey}" data-record-id="${escapeHtml(recordId)}">Editar</button>
                       <button class="mini-button danger" type="button" data-admin-action="delete-record" data-table-key="${tableKey}" data-record-id="${escapeHtml(recordId)}">Eliminar</button>
@@ -1522,7 +1522,7 @@
           password: form.get('password')
         });
         if (error) {
-          showConnectionMessage(`No se pudo iniciar sesion: ${error.message}`);
+          showConnectionMessage(`No se pudo iniciar sesión: ${error.message}`);
           return;
         }
         closeModal();
@@ -1615,7 +1615,7 @@
             <label for="${field.name}">${escapeHtml(field.label)}</label>
             <select id="${field.name}" name="${field.name}"${required}>
               <option value="">Seleccionar</option>
-              ${options.map((option) => `<option value="${escapeHtml(option.value)}" ${String(option.value) === String(value) ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}
+              ${options.map((option) => `<option value="${escapeHtml(option.value)}" ${String(option.value) === String(value) ? 'selected' : ''}>${escapeHtml(displayText(option.label))}</option>`).join('')}
             </select>
           </div>
         `;
@@ -1750,7 +1750,7 @@
 
     function processOptionLabel(item) {
       const plan = state.data.plans.find((planItem) => planItem.id_plan === item.id_plan_nuevo || planItem.id_plan === item.id_plan_evaluado);
-      return `PC01-${item.id_proceso} - ${plan?.nombre_carrera || 'Sin carrera'}`;
+      return `PC01-${item.id_proceso} - ${displayText(plan?.nombre_carrera || 'Sin carrera')}`;
     }
 
     function historyOptionLabel(item) {
@@ -1759,7 +1759,7 @@
     }
 
     function courseOptionLabel(item) {
-      return `${item.codigo_curso} - ${item.nombre}`;
+      return `${item.codigo_curso} - ${displayText(item.nombre)}`;
     }
 
     function recordLabel(tableKey, record) {
@@ -1774,16 +1774,17 @@
     }
 
     function statusBadge(status) {
-      return `<span class="badge ${statusClass(status)}">${escapeHtml(status || 'Sin estado')}</span>`;
+      return `<span class="badge ${statusClass(status)}">${escapeHtml(displayText(status || 'Sin estado'))}</span>`;
     }
 
     function planLabel(plan) {
       if (!plan) return 'Sin plan';
-      return `${plan.nombre_carrera} ${plan.anio_version} - ${plan.total_creditos_requeridos} cred. - ${plan.estado}`;
+      return `${displayText(plan.nombre_carrera)} ${plan.anio_version} - ${plan.total_creditos_requeridos} créd. - ${displayText(plan.estado)}`;
     }
 
     function areaName(id) {
-      return state.data.areas.find((area) => area.id_area === id)?.nombre_area || `Area ${id}`;
+      const area = state.data.areas.find((item) => item.id_area === id)?.nombre_area;
+      return area ? displayText(area) : `Área ${id}`;
     }
 
     function statusClass(value) {
@@ -1836,7 +1837,64 @@
     }
 
     function labelize(value) {
-      return String(value).replace(/_/g, ' ');
+      const labels = {
+        anio_version: 'año versión',
+        total_creditos_requeridos: 'créditos requeridos',
+        creditos: 'créditos',
+        version: 'versión',
+        area: 'área',
+        categoria: 'categoría',
+        codigo: 'código',
+        nombre_area: 'área académica',
+        numero_ciclo: 'número de ciclo',
+        fecha_inicio: 'fecha de inicio',
+        fecha_fin: 'fecha de fin',
+        descripcion_paso: 'descripción del paso',
+        tipo_poblacion: 'tipo de población',
+        texto_pregunta: 'texto de pregunta',
+        poblacion: 'población'
+      };
+      return labels[value] || String(value).replace(/_/g, ' ');
+    }
+
+    function displayText(value) {
+      const text = String(value ?? '');
+      const replacements = {
+        'En Curso': 'En curso',
+        'En Revision': 'En revisión',
+        'en revision': 'en revisión',
+        Historico: 'Histórico',
+        historico: 'histórico',
+        'Referencia huerfana': 'Referencia huérfana'
+      };
+      const exact = replacements[text] || text;
+      return exact
+        .replace(/\bGestion\b/g, 'Gestión')
+        .replace(/\bgestion\b/g, 'gestión')
+        .replace(/\bIngenieria\b/g, 'Ingeniería')
+        .replace(/\bingenieria\b/g, 'ingeniería')
+        .replace(/\bComputacion\b/g, 'Computación')
+        .replace(/\bcomputacion\b/g, 'computación')
+        .replace(/\bRevision\b/g, 'Revisión')
+        .replace(/\brevision\b/g, 'revisión')
+        .replace(/\bHistorico\b/g, 'Histórico')
+        .replace(/\bhistorico\b/g, 'histórico')
+        .replace(/\bTecnologia\b/g, 'Tecnología')
+        .replace(/\btecnologia\b/g, 'tecnología')
+        .replace(/\bSatisfaccion\b/g, 'Satisfacción')
+        .replace(/\bsatisfaccion\b/g, 'satisfacción')
+        .replace(/\bCategoria\b/g, 'Categoría')
+        .replace(/\bcategoria\b/g, 'categoría')
+        .replace(/\bPoblacion\b/g, 'Población')
+        .replace(/\bpoblacion\b/g, 'población')
+        .replace(/\bInformacion\b/g, 'Información')
+        .replace(/\binformacion\b/g, 'información')
+        .replace(/\bAcademica\b/g, 'Académica')
+        .replace(/\bacademica\b/g, 'académica')
+        .replace(/\bAcademicas\b/g, 'Académicas')
+        .replace(/\bacademicas\b/g, 'académicas')
+        .replace(/\bBibliografia\b/g, 'Bibliografía')
+        .replace(/\bbibliografia\b/g, 'bibliografía');
     }
 
     function formatDate(raw) {
