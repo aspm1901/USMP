@@ -37,7 +37,19 @@ on respuesta_encuesta (id_plan, id_pregunta);
 create index if not exists idx_respuesta_encuesta_correo
 on respuesta_encuesta (correo_institucional);
 
--- 4. Evita duplicar el mismo codigo de curso dentro de un mismo plan.
+-- 4. Acelera la validacion de duplicados de la encuesta publica.
+create index if not exists idx_respuesta_encuesta_correo_plan_poblacion
+on respuesta_encuesta (lower(correo_institucional), id_plan, id_poblacion)
+where correo_institucional is not null;
+
+-- 5. Evita duplicar el mismo codigo de curso dentro de un mismo plan.
 -- Si ya hay duplicados, revisar primero la pestana "Auditoria BD" antes de ejecutar.
 create unique index if not exists ux_curso_plan_codigo
 on curso (id_plan, codigo_curso);
+
+-- 6. Evita que el mismo correo responda dos veces la misma encuesta
+-- para el mismo plan y grupo de interes.
+-- Antes de ejecutarlo, elimina duplicados existentes si los hubiera.
+create unique index if not exists ux_respuesta_encuesta_correo_plan_poblacion
+on respuesta_encuesta (lower(correo_institucional), id_plan, id_poblacion)
+where correo_institucional is not null;
