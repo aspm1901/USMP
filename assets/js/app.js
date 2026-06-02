@@ -4,6 +4,7 @@
     };
 
     const TABLES = {
+      careers: 'carrera',
       processes: 'proceso_curricular',
       plans: 'plan_estudio',
       periods: 'periodo_academico',
@@ -16,9 +17,12 @@
       evidence: 'evidencia_documental',
       populations: 'poblacion_objetivo',
       questions: 'pregunta_encuesta',
+      questionLinks: 'pregunta_carrera_poblacion',
       answers: 'respuesta_encuesta',
       prerequisites: 'prerrequisito'
     };
+
+    const FEEDBACK_COLLECTION_STEP = 5;
 
     const state = {
       client: null,
@@ -30,8 +34,14 @@
       activeInsight: 'attention',
       activeDetailTab: 'timeline',
       selectedTimelineStep: {},
+      dashboardFilters: {
+        career: '',
+        population: '',
+        plan: ''
+      },
       activeSupport: 'courses',
       supportFilters: {},
+      supportSelectFilters: {},
       supportPages: {},
       supportPageSize: 10,
       user: null,
@@ -192,12 +202,13 @@
       document.getElementById('filterCareer').addEventListener('change', applyFilters);
       document.getElementById('filterStatus').addEventListener('change', applyFilters);
       document.getElementById('clearFilters').addEventListener('click', clearFilters);
+      document.getElementById('dashboardCareer').addEventListener('change', updateDashboardFilter);
+      document.getElementById('dashboardPopulation').addEventListener('change', updateDashboardFilter);
+      document.getElementById('dashboardPlan').addEventListener('change', updateDashboardFilter);
+      document.getElementById('dashboardClearFilters').addEventListener('click', clearDashboardFilters);
       document.getElementById('loginButton').addEventListener('click', openLoginModal);
       document.getElementById('logoutButton').addEventListener('click', signOut);
       document.getElementById('modalClose').addEventListener('click', closeModal);
-      document.getElementById('modalOverlay').addEventListener('click', (event) => {
-        if (event.target.id === 'modalOverlay') closeModal();
-      });
     }
 
     function buildProcesses(data) {
@@ -270,11 +281,50 @@
       fillSelect('filterPeriod', 'Todos', unique(state.processes.map((item) => item.period?.nombre_periodo)));
       fillSelect('filterCareer', 'Todas', unique(state.processes.map((item) => item.career)));
       fillSelect('filterStatus', 'Todos', unique(state.processes.map((item) => item.status)));
+      populateDashboardFilters();
     }
 
     function fillSelect(id, label, values) {
       const select = document.getElementById(id);
       select.innerHTML = `<option value="">${label}</option>${values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('')}`;
+    }
+
+    function populateDashboardFilters() {
+      const career = state.dashboardFilters.career;
+      const population = state.dashboardFilters.population;
+      const plan = state.dashboardFilters.plan;
+      const currentPlanIds = dashboardCurrentPlanIds();
+      const dashboardPlans = state.data.plans.filter((item) => currentPlanIds.has(Number(item.id_plan)));
+
+      fillSelect('dashboardCareer', 'Todas', unique(dashboardPlans.map((item) => displayText(item.nombre_carrera))));
+      fillSelect('dashboardPopulation', 'Todos', unique(state.data.populations.map((item) => displayText(item.tipo_poblacion))));
+
+      const planSelect = document.getElementById('dashboardPlan');
+      planSelect.innerHTML = `<option value="">Todos</option>${dashboardPlans.map((item) => `
+        <option value="${escapeHtml(item.id_plan)}">${escapeHtml(planLabel(item))}</option>
+      `).join('')}`;
+
+      document.getElementById('dashboardCareer').value = [...document.getElementById('dashboardCareer').options].some((option) => option.value === career) ? career : '';
+      document.getElementById('dashboardPopulation').value = population;
+      document.getElementById('dashboardPlan').value = currentPlanIds.has(Number(plan)) ? plan : '';
+      state.dashboardFilters.career = document.getElementById('dashboardCareer').value;
+      state.dashboardFilters.plan = document.getElementById('dashboardPlan').value;
+    }
+
+    function updateDashboardFilter(event) {
+      const map = {
+        dashboardCareer: 'career',
+        dashboardPopulation: 'population',
+        dashboardPlan: 'plan'
+      };
+      state.dashboardFilters[map[event.target.id]] = event.target.value;
+      renderDashboardSections();
+    }
+
+    function clearDashboardFilters() {
+      state.dashboardFilters = { career: '', population: '', plan: '' };
+      populateDashboardFilters();
+      renderDashboardSections();
     }
 
     function applyFilters() {
@@ -311,12 +361,19 @@
     function render() {
       document.body.classList.toggle('admin-mode', state.isAdmin);
       renderActiveModule();
-      renderMetrics();
-      renderAuthorityInsights();
+      populateDashboardFilters();
+      renderDashboardSections();
       renderProcessList();
       renderDetail();
       renderSupport();
       renderAdminHome();
+    }
+
+    function renderDashboardSections() {
+      renderMetrics();
+      renderPriorityBoard();
+      renderDashboardCharts();
+      renderAuthorityInsights();
     }
 
     function renderActiveModule() {
@@ -329,21 +386,327 @@
     }
 
     function renderMetrics() {
-      const progress = average(state.processes.map((item) => item.progress));
-      const observed = state.processes.filter((item) => normalizeText(item.status).includes('observado')).length;
-      const done = state.processes.filter((item) => normalizeText(item.status).includes('finalizado')).length;
+      const processes = dashboardProcesses();
+      const answers = dashboardAnswers();
+      const progress = average(processes.map((item) => item.progress));
+      const observed = processes.filter((item) => normalizeText(item.status).includes('observado')).length;
+      const done = processes.filter((item) => normalizeText(item.status).includes('finalizado')).length;
       const attention = attentionItems().length;
-      const feedback = average(state.data.answers.map((item) => Number(item.valor_respuesta)));
+      const feedback = average(answers.map((item) => Number(item.valor_respuesta)));
       const activePeriod = activePeriodLabel();
 
-      document.getElementById('metricTotal').textContent = state.processes.length;
+      document.getElementById('metricTotal').textContent = processes.length;
       document.getElementById('metricProgress').textContent = `${Math.round(progress)}%`;
       document.getElementById('metricObserved').textContent = observed;
       document.getElementById('metricDone').textContent = done;
       document.getElementById('metricAttention').textContent = attention;
       document.getElementById('metricActivePeriod').textContent = activePeriod;
-      document.getElementById('metricEvidence').textContent = state.data.evidence.length;
+      document.getElementById('metricEvidence').textContent = processes.reduce((total, item) => total + item.evidence.length, 0);
       document.getElementById('metricFeedback').textContent = feedback ? feedback.toFixed(1) : '0.0';
+    }
+
+    function renderPriorityBoard() {
+      const container = document.getElementById('priorityBoard');
+      if (!container) return;
+
+      const urgent = [
+        ...attentionItems().slice(0, 2).map((item) => ({
+          label: 'Proceso observado',
+          title: item.title,
+          detail: item.detail,
+          meta: item.meta,
+          className: 'priority-danger'
+        })),
+        ...criticalQuestionItems().slice(0, 2).map((item) => ({
+          label: 'Pregunta crítica',
+          title: item.label,
+          detail: `${item.avg.toFixed(1)} de 5 - ${item.detail}`,
+          meta: item.meta,
+          className: 'priority-danger'
+        }))
+      ].slice(0, 3);
+      const lowSample = lowSampleItems().slice(0, 3);
+      const missingEvidence = missingEvidenceItems().slice(0, 3);
+
+      container.innerHTML = `
+        <article class="priority-card priority-card-main">
+          <div class="priority-card-header">
+            <div>
+              <h2 class="panel-title">Prioridades de atención</h2>
+              <span class="panel-note">Lo que conviene revisar primero</span>
+            </div>
+            <strong>${urgent.length}</strong>
+          </div>
+          <div class="priority-list">
+            ${urgent.length ? urgent.map(priorityItemTemplate).join('') : emptyTemplate('No hay urgencias críticas con el filtro actual.')}
+          </div>
+        </article>
+        <article class="priority-card">
+          <div class="priority-card-header">
+            <div>
+              <h2 class="panel-title">Muestra baja</h2>
+              <span class="panel-note">Promedios con pocas respuestas</span>
+            </div>
+            <strong>${lowSample.length}</strong>
+          </div>
+          <div class="priority-list">
+            ${lowSample.length ? lowSample.map(priorityItemTemplate).join('') : emptyTemplate('No hay grupos con muestra baja.')}
+          </div>
+        </article>
+        <article class="priority-card">
+          <div class="priority-card-header">
+            <div>
+              <h2 class="panel-title">Sin evidencia</h2>
+              <span class="panel-note">Expedientes que necesitan respaldo</span>
+            </div>
+            <strong>${missingEvidence.length}</strong>
+          </div>
+          <div class="priority-list">
+            ${missingEvidence.length ? missingEvidence.map(priorityItemTemplate).join('') : emptyTemplate('No hay expedientes sin evidencia para este filtro.')}
+          </div>
+        </article>
+      `;
+    }
+
+    function priorityItemTemplate(item) {
+      return `
+        <div class="priority-item ${item.className || ''}">
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${escapeHtml(item.title)}</strong>
+          <p>${escapeHtml(item.detail)}</p>
+          <small>${escapeHtml(item.meta)}</small>
+        </div>
+      `;
+    }
+
+    function renderDashboardCharts() {
+      renderCareerGroupChart();
+      renderFeedbackStatusChart();
+      renderCriticalQuestionChart();
+    }
+
+    function renderCareerGroupChart() {
+      const container = document.getElementById('chartCareerGroup');
+      if (!container) return;
+      const plans = mapBy(state.data.plans, 'id_plan');
+      const populations = mapBy(state.data.populations, 'id_poblacion');
+      const rows = Array.from(groupBy(dashboardAnswers(), (answer) => [
+        dashboardPlanTitle(plans.get(answer.id_plan)),
+        dashboardPlanMeta(plans.get(answer.id_plan)),
+        populations.get(answer.id_poblacion)?.tipo_poblacion || 'Sin población'
+      ].join('||')).entries())
+        .map(([key, answers]) => {
+          const [career, planMeta, population] = key.split('||');
+          const avg = average(answers.map((answer) => Number(answer.valor_respuesta)));
+          return {
+            career,
+            population: `${displayText(planMeta)} - ${displayText(population)}`,
+            avg,
+            count: answers.length,
+            status: feedbackStatus(avg)
+          };
+        })
+        .sort((a, b) => a.avg - b.avg)
+        .slice(0, 8);
+
+      container.innerHTML = rows.length
+        ? rows.map((item) => barChartRowTemplate(item.career, item.population, item.avg, item.count, item.status)).join('')
+        : emptyTemplate('Aún no hay respuestas suficientes para graficar.');
+    }
+
+    function renderFeedbackStatusChart() {
+      const container = document.getElementById('chartFeedbackStatus');
+      if (!container) return;
+      const groups = [
+        { key: 'critical', label: 'Crítico', className: 'feedback-status-critical', count: 0 },
+        { key: 'warning', label: 'Revisar', className: 'feedback-status-warning', count: 0 },
+        { key: 'ok', label: 'Adecuado', className: 'feedback-status-ok', count: 0 }
+      ];
+      dashboardAnswers().forEach((answer) => {
+        const value = Number(answer.valor_respuesta);
+        if (value < 3) groups[0].count += 1;
+        else if (value < 3.8) groups[1].count += 1;
+        else groups[2].count += 1;
+      });
+      const total = sum(groups.map((item) => item.count));
+
+      container.innerHTML = total
+        ? `
+          <div class="status-stack">
+            ${groups.map((item) => `<span class="${item.className}" style="width:${Math.max(4, (item.count / total) * 100)}%"></span>`).join('')}
+          </div>
+          <div class="status-breakdown">
+            ${groups.map((item) => `
+              <div>
+                <span class="${item.className}">${item.label}</span>
+                <strong>${item.count}</strong>
+                <small>${Math.round((item.count / total) * 100)}%</small>
+              </div>
+            `).join('')}
+          </div>
+        `
+        : emptyTemplate('Aún no hay respuestas para calcular el semáforo.');
+    }
+
+    function renderCriticalQuestionChart() {
+      const container = document.getElementById('chartCriticalQuestions');
+      if (!container) return;
+      const rows = criticalQuestionItems().slice(0, 5);
+
+      container.innerHTML = rows.length
+        ? rows.map((item) => `
+          <article class="critical-item">
+            <div>
+              <strong>${escapeHtml(item.label)}</strong>
+              <span>${escapeHtml(item.detail)}</span>
+              <small>${escapeHtml(item.meta)} - ${item.count} respuesta(s)</small>
+            </div>
+            <b class="${item.status.className}">${item.avg.toFixed(1)}</b>
+          </article>
+        `).join('')
+        : emptyTemplate('Aún no hay respuestas para ordenar preguntas críticas.');
+    }
+
+    function barChartRowTemplate(title, subtitle, value, count, status) {
+      const sample = count < 3 ? '<span class="sample-note">Muestra baja</span>' : '';
+      return `
+        <article class="bar-row">
+          <div class="bar-row-head">
+            <div>
+              <strong>${escapeHtml(title)}</strong>
+              <span>${escapeHtml(subtitle)} - ${count} respuesta(s) ${sample}</span>
+            </div>
+            <b class="${status.className}">${value.toFixed(1)}</b>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill ${status.className}" style="width:${Math.min(100, Math.max(0, value * 20))}%"></div>
+          </div>
+        </article>
+      `;
+    }
+
+    function dashboardAnswers() {
+      const plans = mapBy(state.data.plans, 'id_plan');
+      const filters = state.dashboardFilters;
+      const surveyPlanIds = dashboardSurveyPlanIds();
+      return state.data.answers.filter((answer) => {
+        const plan = plans.get(answer.id_plan);
+        const population = state.data.populations.find((item) => item.id_poblacion === answer.id_poblacion);
+        const matchesScope = surveyPlanIds.has(Number(answer.id_plan));
+        const matchesCareer = !filters.career || displayText(plan?.nombre_carrera) === filters.career;
+        const matchesPopulation = !filters.population || displayText(population?.tipo_poblacion) === filters.population;
+        const matchesPlan = !filters.plan || String(answer.id_plan) === String(filters.plan);
+        return matchesScope && matchesCareer && matchesPopulation && matchesPlan;
+      });
+    }
+
+    function dashboardProcesses() {
+      const filters = state.dashboardFilters;
+      return currentDashboardProcesses().filter((item) => {
+        const planIds = [item.evaluatedPlan?.id_plan, item.newPlan?.id_plan].filter(Boolean).map(String);
+        const matchesCareer = !filters.career || item.career === filters.career;
+        const matchesPlan = !filters.plan || planIds.includes(String(filters.plan));
+        return matchesCareer && matchesPlan;
+      });
+    }
+
+    function dashboardCurrentPlanIds() {
+      const nonHistoricalPlans = state.data.plans
+        .filter((plan) => !normalizeText(plan.estado).includes('historico'))
+        .map((plan) => Number(plan.id_plan));
+
+      return new Set(nonHistoricalPlans);
+    }
+
+    function dashboardSurveyPlanIds() {
+      const currentPlanIds = dashboardCurrentPlanIds();
+      return new Set([...currentPlanIds].filter((idPlan) => {
+        const relatedProcesses = state.processes.filter((item) => [
+          item.evaluatedPlan?.id_plan,
+          item.newPlan?.id_plan
+        ].map(Number).includes(idPlan));
+
+        return !relatedProcesses.length || relatedProcesses.some((item) => item.currentStep <= FEEDBACK_COLLECTION_STEP);
+      }));
+    }
+
+    function currentDashboardProcesses() {
+      return state.processes.filter((item) => {
+        const planIsCurrent = [item.evaluatedPlan, item.newPlan]
+          .filter(Boolean)
+          .some((plan) => !normalizeText(plan.estado).includes('historico'));
+        return planIsCurrent;
+      });
+    }
+
+    function criticalQuestionItems() {
+      const questions = mapBy(state.data.questions, 'id_pregunta');
+      const plans = mapBy(state.data.plans, 'id_plan');
+      const populations = mapBy(state.data.populations, 'id_poblacion');
+      return Array.from(groupBy(dashboardAnswers(), (answer) => [
+        answer.id_plan,
+        answer.id_poblacion,
+        answer.id_pregunta
+      ].join('|')).entries())
+        .map(([key, answers]) => {
+          const [idPlan, idPopulation, idQuestion] = key.split('|').map(Number);
+          const question = questions.get(idQuestion);
+          const avg = average(answers.map((answer) => Number(answer.valor_respuesta)));
+          return {
+            label: displayText(question?.categoria || `Pregunta ${idQuestion}`),
+            detail: displayText(question?.texto_pregunta || ''),
+            meta: `${dashboardPlanTitle(plans.get(idPlan))} - ${dashboardPlanMeta(plans.get(idPlan))} - ${displayText(populations.get(idPopulation)?.tipo_poblacion || 'Población')}`,
+            avg,
+            count: answers.length,
+            status: feedbackStatus(avg)
+          };
+        })
+        .filter((item) => item.avg > 0)
+        .sort((a, b) => a.avg - b.avg);
+    }
+
+    function lowSampleItems() {
+      const plans = mapBy(state.data.plans, 'id_plan');
+      const populations = mapBy(state.data.populations, 'id_poblacion');
+      return Array.from(groupBy(dashboardAnswers(), (answer) => [
+        answer.id_plan,
+        answer.id_poblacion
+      ].join('|')).entries())
+        .map(([key, answers]) => {
+          const [idPlan, idPopulation] = key.split('|').map(Number);
+          const avg = average(answers.map((answer) => Number(answer.valor_respuesta)));
+          return {
+            label: 'Validar muestra',
+            title: displayText(populations.get(idPopulation)?.tipo_poblacion || 'Población'),
+            detail: `${answers.length} respuesta(s), promedio ${avg.toFixed(1)} de 5.`,
+            meta: `${dashboardPlanTitle(plans.get(idPlan))} - ${dashboardPlanMeta(plans.get(idPlan))}`,
+            count: answers.length,
+            className: 'priority-warning'
+          };
+        })
+        .filter((item) => item.count > 0 && item.count < 3)
+        .sort((a, b) => a.count - b.count);
+    }
+
+    function missingEvidenceItems() {
+      return dashboardProcesses()
+        .filter((item) => !normalizeText(item.status).includes('finalizado') && item.evidence.length === 0)
+        .map((item) => ({
+          label: 'Falta respaldo',
+          title: item.career,
+          detail: 'Expediente en curso sin evidencias documentales registradas.',
+          meta: `${item.period?.nombre_periodo || 'Sin periodo'} - PC01-${item.id}`,
+          className: 'priority-warning'
+        }));
+    }
+
+    function dashboardPlanTitle(plan) {
+      return displayText(plan?.nombre_carrera || 'Sin carrera');
+    }
+
+    function dashboardPlanMeta(plan) {
+      if (!plan) return 'Sin plan';
+      return `Plan ${plan.anio_version} - ${plan.total_creditos_requeridos} créd. - ${displayText(plan.estado)}`;
     }
 
     function renderAuthorityInsights() {
@@ -405,7 +768,7 @@
     }
 
     function attentionItems() {
-      return state.processes
+      return dashboardProcesses()
         .filter((item) => isObserved(item.status) || item.history.some((entry) => isObserved(entry.estado_fase)))
         .map((item) => {
           const observedPhase = item.history.find((entry) => isObserved(entry.estado_fase));
@@ -419,7 +782,7 @@
     }
 
     function bottleneckItems() {
-      return state.processes.flatMap((item) => {
+      return dashboardProcesses().flatMap((item) => {
         const missingBeforeLatest = item.fullTimeline
           .filter(({ step, entry }) => !entry && step.numero_paso < item.currentStep)
           .map(({ step }) => ({
@@ -451,7 +814,7 @@
     function feedbackAlertItems() {
       const questions = mapBy(state.data.questions, 'id_pregunta');
       const plans = mapBy(state.data.plans, 'id_plan');
-      const byPlan = groupBy(state.data.answers, 'id_plan');
+      const byPlan = groupBy(dashboardAnswers(), 'id_plan');
       const alerts = [];
 
       byPlan.forEach((answers, planId) => {
@@ -907,6 +1270,7 @@
       return [
         ['courses', 'Planes y cursos', supportCourses],
         ['answers', 'Feedback', supportAnswers],
+        ['questions', 'Preguntas de encuesta', supportSurveyQuestions],
         ['evidence', 'Evidencias', supportEvidence],
         ['prerequisites', 'Prerrequisitos', supportPrerequisites],
         ['catalogs', 'Catálogos', supportCatalogs]
@@ -922,8 +1286,7 @@
     function renderSupportContent(tableKey, payload) {
       if (typeof payload === 'string') return payload;
 
-      const query = state.supportFilters[tableKey] || '';
-      const filteredRows = filterSupportRows(payload.rows, query);
+      const filteredRows = filteredSupportRows(tableKey, payload);
       const pageSize = state.supportPageSize;
       const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
       const currentPage = Math.min(state.supportPages[tableKey] || 1, totalPages);
@@ -936,8 +1299,9 @@
         <div class="support-tools">
           <div class="field">
             <label for="supportSearch">Filtrar consulta</label>
-            <input id="supportSearch" type="search" value="${escapeHtml(query)}" placeholder="Buscar en ${escapeHtml(payload.label.toLowerCase())}">
+            <input id="supportSearch" type="search" value="${escapeHtml(state.supportFilters[tableKey] || '')}" placeholder="Buscar en ${escapeHtml(payload.label.toLowerCase())}">
           </div>
+          ${supportSelectFiltersTemplate(tableKey, payload)}
           <div class="field">
             <label for="supportPageSize">Filas</label>
             <select id="supportPageSize">
@@ -945,14 +1309,14 @@
             </select>
           </div>
           <button id="supportClearFilter" class="mini-button" type="button">Limpiar</button>
+          ${payload.exportable ? '<button id="supportExportCsv" class="mini-button" type="button">Exportar CSV</button>' : ''}
         </div>
         <div id="supportResults">${supportResultsTemplate(tableKey, payload)}</div>
       `;
     }
 
     function supportResultsTemplate(tableKey, payload) {
-      const query = state.supportFilters[tableKey] || '';
-      const filteredRows = filterSupportRows(payload.rows, query);
+      const filteredRows = filteredSupportRows(tableKey, payload);
       const pageSize = state.supportPageSize;
       const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
       const currentPage = Math.min(state.supportPages[tableKey] || 1, totalPages);
@@ -1002,9 +1366,26 @@
       if (clear) {
         clear.addEventListener('click', () => {
           state.supportFilters[state.activeSupport] = '';
+          state.supportSelectFilters[state.activeSupport] = {};
           state.supportPages[state.activeSupport] = 1;
           renderSupport();
         });
+      }
+
+      document.querySelectorAll('[data-support-filter]').forEach((select) => {
+        select.addEventListener('change', () => {
+          if (!state.supportSelectFilters[state.activeSupport]) {
+            state.supportSelectFilters[state.activeSupport] = {};
+          }
+          state.supportSelectFilters[state.activeSupport][select.dataset.supportFilter] = select.value;
+          state.supportPages[state.activeSupport] = 1;
+          renderSupportResultsOnly();
+        });
+      });
+
+      const exportCsv = document.getElementById('supportExportCsv');
+      if (exportCsv) {
+        exportCsv.addEventListener('click', exportActiveSupportCsv);
       }
 
       bindSupportPagination();
@@ -1027,6 +1408,44 @@
         .filter(([key]) => key !== '_record')
         .map(([, value]) => value)
         .join(' ')).includes(normalized));
+    }
+
+    function filteredSupportRows(tableKey, payload) {
+      const query = state.supportFilters[tableKey] || '';
+      const selected = state.supportSelectFilters[tableKey] || {};
+      return filterSupportRows(payload.rows, query).filter((row) => {
+        if (!payload.filters?.length) return true;
+        return payload.filters.every((filter) => {
+          const value = selected[filter.key];
+          return !value || String(row[filter.key]) === String(value);
+        });
+      });
+    }
+
+    function exportActiveSupportCsv() {
+      const active = activeSupportPayload();
+      if (!active) return;
+
+      const [tableKey, payload] = active;
+      const rows = filteredSupportRows(tableKey, payload);
+      const csv = [
+        payload.columns.join(','),
+        ...rows.map((row) => payload.columns.map((column) => csvCell(row[column])).join(','))
+      ].join('\n');
+      const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${tableKey}-${todayISO()}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function csvCell(value) {
+      const text = displayText(value ?? '');
+      return `"${String(text).replaceAll('"', '""')}"`;
     }
 
     function renderAdminHome() {
@@ -1090,6 +1509,7 @@
       const actionBySupport = {
         plans: ['plans', 'Agregar plan'],
         courses: ['courses', 'Agregar curso'],
+        questions: ['survey-question', 'Agregar pregunta'],
         prerequisites: ['prerequisites', 'Agregar prerrequisito'],
         evidence: ['evidence', 'Agregar evidencia']
       };
@@ -1098,7 +1518,7 @@
 
       return `
         <div class="admin-toolbar">
-          <button class="mini-button" type="button" data-admin-action="add-record" data-table-key="${action[0]}">${action[1]}</button>
+          <button class="mini-button" type="button" data-admin-action="${action[0] === 'survey-question' ? 'add-survey-question' : 'add-record'}" ${action[0] === 'survey-question' ? '' : `data-table-key="${action[0]}"`}>${action[1]}</button>
         </div>
       `;
     }
@@ -1141,35 +1561,106 @@
         poblacion: displayText(populations.get(answer.id_poblacion)?.tipo_poblacion || '-'),
         categoria: displayText(questions.get(answer.id_pregunta)?.categoria || '-'),
         puntaje: `${answer.valor_respuesta}/5`,
+        estado: feedbackStatus(Number(answer.valor_respuesta)).label,
         comentario: answer.comentario,
         _record: answer
       }));
-      return { label: 'Feedback', rows, columns: ['fecha', 'correo', 'plan', 'poblacion', 'categoria', 'puntaje', 'comentario'], tableKey: 'answers', summary };
+      return { label: 'Feedback', rows, columns: ['fecha', 'correo', 'plan', 'poblacion', 'categoria', 'puntaje', 'estado', 'comentario'], tableKey: 'answers', summary, exportable: true };
+    }
+
+    function supportSurveyQuestions() {
+      const questions = mapBy(state.data.questions, 'id_pregunta');
+      const careers = mapBy(state.data.careers || [], 'id_carrera');
+      const populations = mapBy(state.data.populations, 'id_poblacion');
+      const rows = (state.data.questionLinks || []).map((link) => {
+        const question = questions.get(link.id_pregunta);
+        const career = careers.get(link.id_carrera);
+        const population = populations.get(link.id_poblacion);
+        return {
+          carrera: displayText(career?.nombre_carrera || `Carrera ${link.id_carrera}`),
+          poblacion: displayText(population?.tipo_poblacion || `Población ${link.id_poblacion}`),
+          categoria: displayText(question?.categoria || '-'),
+          pregunta: displayText(question?.texto_pregunta || `Pregunta ${link.id_pregunta}`),
+          id_carrera: link.id_carrera,
+          id_poblacion: link.id_poblacion,
+          _record: {
+            id_pregunta: link.id_pregunta,
+            id_carrera: link.id_carrera,
+            id_poblacion: link.id_poblacion,
+            categoria: question?.categoria || '',
+            texto_pregunta: question?.texto_pregunta || ''
+          }
+        };
+      }).sort((a, b) => a.carrera.localeCompare(b.carrera, 'es') || a.poblacion.localeCompare(b.poblacion, 'es') || a.categoria.localeCompare(b.categoria, 'es'));
+
+      return {
+        label: 'Preguntas de encuesta',
+        rows,
+        columns: ['carrera', 'poblacion', 'categoria', 'pregunta'],
+        tableKey: 'questionLinks',
+        filters: [
+          {
+            key: 'id_carrera',
+            label: 'Carrera',
+            options: unique(rows.map((row) => row.id_carrera)).map((id) => ({
+              value: id,
+              label: rows.find((row) => Number(row.id_carrera) === Number(id))?.carrera || `Carrera ${id}`
+            }))
+          },
+          {
+            key: 'id_poblacion',
+            label: 'Grupo de interés',
+            options: unique(rows.map((row) => row.id_poblacion)).map((id) => ({
+              value: id,
+              label: rows.find((row) => Number(row.id_poblacion) === Number(id))?.poblacion || `Población ${id}`
+            }))
+          }
+        ]
+      };
     }
 
     function feedbackSummaryTemplate(answers, questions, populations, plans) {
       if (!answers.length) return '';
 
-      const uniqueParticipants = unique(answers.map((answer) => [
+      const participantKeys = answers.map((answer) => [
         answer.correo_institucional,
         answer.id_plan,
         answer.id_poblacion
-      ].join('|'))).length;
+      ].join('|'));
+      const uniqueParticipants = unique(participantKeys).length;
       const overall = average(answers.map((answer) => Number(answer.valor_respuesta)));
       const comments = answers.filter((answer) => String(answer.comentario || '').trim()).length;
+      const criticalCount = answers.filter((answer) => Number(answer.valor_respuesta) < 3).length;
       const byPlan = Array.from(groupBy(answers, 'id_plan').entries())
         .map(([planId, planAnswers]) => ({
           label: planLabel(plans.get(Number(planId))),
           avg: average(planAnswers.map((answer) => Number(answer.valor_respuesta))),
-          count: planAnswers.length
+          count: planAnswers.length,
+          participants: unique(planAnswers.map((answer) => answer.correo_institucional || `respuesta-${answer.id_respuesta}`)).length
         }))
         .sort((a, b) => a.avg - b.avg)
         .slice(0, 3);
+      const byCareerPopulation = Array.from(groupBy(answers, (answer) => [
+        planLabel(plans.get(answer.id_plan)),
+        populations.get(answer.id_poblacion)?.tipo_poblacion || 'Sin población'
+      ].join('||')).entries())
+        .map(([key, groupAnswers]) => {
+          const [career, population] = key.split('||');
+          return {
+            career,
+            population: displayText(population),
+            avg: average(groupAnswers.map((answer) => Number(answer.valor_respuesta))),
+            count: groupAnswers.length,
+            participants: unique(groupAnswers.map((answer) => answer.correo_institucional || `respuesta-${answer.id_respuesta}`)).length
+          };
+        })
+        .sort((a, b) => a.career.localeCompare(b.career, 'es') || a.population.localeCompare(b.population, 'es'));
       const byPopulation = Array.from(groupBy(answers, (answer) => populations.get(answer.id_poblacion)?.tipo_poblacion || 'Sin población').entries())
         .map(([population, populationAnswers]) => ({
           label: displayText(population),
           avg: average(populationAnswers.map((answer) => Number(answer.valor_respuesta))),
-          count: populationAnswers.length
+          count: populationAnswers.length,
+          participants: unique(populationAnswers.map((answer) => answer.correo_institucional || `respuesta-${answer.id_respuesta}`)).length
         }))
         .sort((a, b) => a.label.localeCompare(b.label, 'es'));
       const byCategory = Array.from(groupBy(answers, (answer) => questions.get(answer.id_pregunta)?.categoria || 'Sin categoría').entries())
@@ -1180,10 +1671,33 @@
         }))
         .sort((a, b) => a.avg - b.avg)
         .slice(0, 4);
+      const lowQuestions = Array.from(groupBy(answers, (answer) => [
+        answer.id_plan,
+        answer.id_poblacion,
+        answer.id_pregunta
+      ].join('|')).entries())
+        .map(([key, questionAnswers]) => {
+          const [idPlan, idPopulation, idQuestion] = key.split('|').map(Number);
+          const question = questions.get(idQuestion);
+          return {
+            label: displayText(question?.texto_pregunta || `Pregunta ${idQuestion}`),
+            meta: `${planLabel(plans.get(idPlan))} - ${displayText(populations.get(idPopulation)?.tipo_poblacion || 'Población')} - ${displayText(question?.categoria || 'Sin categoría')}`,
+            avg: average(questionAnswers.map((answer) => Number(answer.valor_respuesta))),
+            count: questionAnswers.length
+          };
+        })
+        .sort((a, b) => a.avg - b.avg)
+        .slice(0, 5);
+      const highlightedComments = answers
+        .filter((answer) => String(answer.comentario || '').trim())
+        .slice()
+        .sort((a, b) => Number(a.valor_respuesta) - Number(b.valor_respuesta) || new Date(b.fecha_respuesta) - new Date(a.fecha_respuesta))
+        .slice(0, 5);
 
       const metricCards = [
-        ['Promedio general', overall ? overall.toFixed(1) : '0.0', `${answers.length} respuesta(s)`],
+        ['Promedio general', overall ? overall.toFixed(1) : '0.0', feedbackStatus(overall).label],
         ['Participantes únicos', uniqueParticipants, 'Por correo, carrera y grupo'],
+        ['Puntajes críticos', criticalCount, 'Respuestas menores a 3'],
         ['Comentarios', comments, 'Aclaraciones opcionales']
       ].map(([label, value, note]) => `
         <article class="score-card">
@@ -1199,12 +1713,54 @@
           ${items.map((item) => `
             <div class="feedback-summary-row">
               <span>${escapeHtml(item.label)}</span>
-              <strong>${item.avg.toFixed(1)}</strong>
-              <small>${item.count} respuesta(s)</small>
+              <strong class="${feedbackStatus(item.avg).className}">${item.avg.toFixed(1)}</strong>
+              <small>${item.participants ? `${item.participants} participante(s) - ` : ''}${item.count} respuesta(s)</small>
             </div>
           `).join('')}
         </article>
       `;
+      const matrix = `
+        <article class="feedback-summary-list feedback-summary-wide">
+          <h3>Resultados por carrera y grupo de interés</h3>
+          <div class="feedback-matrix">
+            ${byCareerPopulation.map((item) => `
+              <div class="feedback-matrix-row">
+                <span>${escapeHtml(item.career)}</span>
+                <small>${escapeHtml(item.population)}</small>
+                <strong class="${feedbackStatus(item.avg).className}">${item.avg.toFixed(1)}</strong>
+                <em>${item.participants} participante(s) - ${item.count} respuesta(s)</em>
+              </div>
+            `).join('')}
+          </div>
+        </article>
+      `;
+      const questionRanking = `
+        <article class="feedback-summary-list feedback-summary-wide">
+          <h3>Preguntas con menor promedio</h3>
+          ${lowQuestions.map((item) => `
+            <div class="feedback-summary-row feedback-question-row">
+              <span>${escapeHtml(item.label)}</span>
+              <strong class="${feedbackStatus(item.avg).className}">${item.avg.toFixed(1)}</strong>
+              <small>${escapeHtml(item.meta)} - ${item.count} respuesta(s)</small>
+            </div>
+          `).join('')}
+        </article>
+      `;
+      const commentsList = highlightedComments.length ? `
+        <article class="feedback-summary-list feedback-summary-wide">
+          <h3>Comentarios que explican puntajes bajos</h3>
+          ${highlightedComments.map((answer) => {
+            const question = questions.get(answer.id_pregunta);
+            return `
+              <div class="feedback-comment-row">
+                <strong class="${feedbackStatus(Number(answer.valor_respuesta)).className}">${answer.valor_respuesta}/5</strong>
+                <span>${escapeHtml(answer.comentario)}</span>
+                <small>${escapeHtml(planLabel(plans.get(answer.id_plan)))} - ${escapeHtml(displayText(populations.get(answer.id_poblacion)?.tipo_poblacion || 'Población'))} - ${escapeHtml(displayText(question?.categoria || 'Sin categoría'))}</small>
+              </div>
+            `;
+          }).join('')}
+        </article>
+      ` : '';
 
       return `
         <section class="feedback-summary">
@@ -1214,8 +1770,32 @@
             ${list('Promedio por grupo de interés', byPopulation)}
             ${list('Categorías con menor puntaje', byCategory)}
           </div>
+          ${matrix}
+          ${questionRanking}
+          ${commentsList}
         </section>
       `;
+    }
+
+    function supportSelectFiltersTemplate(tableKey, payload) {
+      if (!payload.filters?.length) return '';
+      const values = state.supportSelectFilters[tableKey] || {};
+      return payload.filters.map((filter) => `
+        <div class="field">
+          <label for="supportFilter_${escapeHtml(filter.key)}">${escapeHtml(filter.label)}</label>
+          <select id="supportFilter_${escapeHtml(filter.key)}" data-support-filter="${escapeHtml(filter.key)}">
+            <option value="">Todos</option>
+            ${filter.options.map((option) => `<option value="${escapeHtml(option.value)}" ${String(values[filter.key] || '') === String(option.value) ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}
+          </select>
+        </div>
+      `).join('');
+    }
+
+    function feedbackStatus(value) {
+      if (!Number.isFinite(value) || value <= 0) return { label: 'Sin datos', className: 'feedback-status-muted' };
+      if (value < 3) return { label: 'Crítico', className: 'feedback-status-critical' };
+      if (value < 3.8) return { label: 'Revisar', className: 'feedback-status-warning' };
+      return { label: 'Adecuado', className: 'feedback-status-ok' };
     }
 
     function supportPrerequisites() {
@@ -1256,7 +1836,6 @@
           <div class="info-card"><div class="info-card-header">Periodos</div><div class="info-card-body">${simpleTable(state.data.periods, ['nombre_periodo', 'fecha_inicio', 'fecha_fin', 'estado'])}</div></div>
           <div class="info-card"><div class="info-card-header">Pasos PC01</div><div class="info-card-body">${simpleTable(state.data.steps, ['numero_paso', 'descripcion_paso'])}</div></div>
           <div class="info-card"><div class="info-card-header">Poblaciones objetivo</div><div class="info-card-body">${simpleTable(state.data.populations, ['tipo_poblacion'])}</div></div>
-          <div class="info-card"><div class="info-card-header">Preguntas de encuesta</div><div class="info-card-body">${simpleTable(state.data.questions, ['categoria', 'texto_pregunta'])}</div></div>
         </div>
       `;
     }
@@ -1290,6 +1869,8 @@
     function editableTable(rows, columns, tableKey) {
       if (!rows.length) return emptyTemplate('Sin registros para mostrar.');
       const config = EDIT_CONFIG[tableKey];
+      const customActions = tableKey === 'questionLinks';
+      const hasActions = Boolean((config && tableKey !== 'answers') || customActions);
 
       return `
         <div class="table-wrap">
@@ -1297,19 +1878,27 @@
             <thead>
               <tr>
                 ${columns.map((column) => `<th>${escapeHtml(labelize(column))}</th>`).join('')}
-                <th class="admin-only">Acciones</th>
+                ${hasActions ? '<th class="admin-only">Acciones</th>' : ''}
               </tr>
             </thead>
             <tbody>
               ${rows.map((row) => {
-                const recordId = encodeRecordId(config, row._record);
+                const recordId = config ? encodeRecordId(config, row._record) : '';
+                const questionRecordId = customActions ? surveyQuestionRecordId(row._record) : '';
                 return `
                   <tr>
                     ${columns.map((column) => `<td>${escapeHtml(displayText(row[column] ?? '-'))}</td>`).join('')}
-                    <td class="action-cell admin-only">
-                      <button class="mini-button" type="button" data-admin-action="edit-record" data-table-key="${tableKey}" data-record-id="${escapeHtml(recordId)}">Editar</button>
-                      <button class="mini-button danger" type="button" data-admin-action="delete-record" data-table-key="${tableKey}" data-record-id="${escapeHtml(recordId)}">Eliminar</button>
-                    </td>
+                    ${customActions ? `
+                      <td class="action-cell admin-only">
+                        <button class="mini-button" type="button" data-admin-action="edit-survey-question" data-record-id="${escapeHtml(questionRecordId)}">Editar</button>
+                        <button class="mini-button danger" type="button" data-admin-action="remove-survey-question" data-record-id="${escapeHtml(questionRecordId)}">Quitar</button>
+                      </td>
+                    ` : config && tableKey !== 'answers' ? `
+                      <td class="action-cell admin-only">
+                        <button class="mini-button" type="button" data-admin-action="edit-record" data-table-key="${tableKey}" data-record-id="${escapeHtml(recordId)}">Editar</button>
+                        <button class="mini-button danger" type="button" data-admin-action="delete-record" data-table-key="${tableKey}" data-record-id="${escapeHtml(recordId)}">Eliminar</button>
+                      </td>
+                    ` : ''}
                   </tr>
                 `;
               }).join('')}
@@ -1401,6 +1990,240 @@
       if (action === 'add-record') openRecordForm(button.dataset.tableKey, defaultRecord(button.dataset.tableKey));
       if (action === 'edit-record') openRecordForm(button.dataset.tableKey, findRecordByEncodedId(button.dataset.tableKey, button.dataset.recordId));
       if (action === 'delete-record') confirmDelete(button.dataset.tableKey, findRecordByEncodedId(button.dataset.tableKey, button.dataset.recordId));
+      if (action === 'add-survey-question') openSurveyQuestionForm();
+      if (action === 'edit-survey-question') openSurveyQuestionForm(findSurveyQuestionRecord(button.dataset.recordId));
+      if (action === 'remove-survey-question') removeSurveyQuestionLink(findSurveyQuestionRecord(button.dataset.recordId));
+    }
+
+    function openSurveyQuestionForm(record = {}) {
+      const isEdit = Boolean(record.id_pregunta && record.id_carrera && record.id_poblacion);
+      const body = `
+        <form id="surveyQuestionForm">
+          <div class="form-grid">
+            <div class="field">
+              <label for="id_carrera">Carrera</label>
+              <select id="id_carrera" name="id_carrera" required>
+                <option value="">Seleccionar</option>
+                ${(state.data.careers || []).map((career) => `<option value="${escapeHtml(career.id_carrera)}" ${String(career.id_carrera) === String(record.id_carrera || '') ? 'selected' : ''}>${escapeHtml(displayText(career.nombre_carrera))}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field">
+              <label for="id_poblacion">Grupo de interés</label>
+              <select id="id_poblacion" name="id_poblacion" required>
+                <option value="">Seleccionar</option>
+                ${state.data.populations.map((population) => `<option value="${escapeHtml(population.id_poblacion)}" ${String(population.id_poblacion) === String(record.id_poblacion || '') ? 'selected' : ''}>${escapeHtml(displayText(population.tipo_poblacion))}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field wide">
+              <label>Categoría</label>
+              <div class="category-picker">
+                <div id="categorySuggestions" class="category-suggestions" role="group" aria-label="Categorías sugeridas"></div>
+                <button id="newCategoryButton" class="mini-button" type="button">Nueva categoría</button>
+              </div>
+              <input id="categoria" name="categoria" type="hidden" value="${escapeHtml(record.categoria || '')}" required>
+              <input id="categoria_custom" class="is-hidden" type="text" value="${escapeHtml(record.categoria || '')}" placeholder="Escribe la nueva categoría">
+            </div>
+            <div class="field wide">
+              <label for="texto_pregunta">Pregunta</label>
+              <textarea id="texto_pregunta" name="texto_pregunta" required>${escapeHtml(record.texto_pregunta || '')}</textarea>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="mini-button" type="button" data-close-modal>Cancelar</button>
+            <button class="btn" type="submit">${isEdit ? 'Guardar cambios' : 'Agregar pregunta'}</button>
+          </div>
+        </form>
+      `;
+
+      openModal(isEdit ? 'Editar pregunta de encuesta' : 'Agregar pregunta de encuesta', 'Los cambios se guardan en pregunta_encuesta y pregunta_carrera_poblacion.', body);
+      bindSurveyQuestionCategoryControls(record);
+      document.getElementById('surveyQuestionForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        await saveSurveyQuestion(record, new FormData(event.currentTarget));
+      });
+    }
+
+    function bindSurveyQuestionCategoryControls(record = {}) {
+      const career = document.getElementById('id_carrera');
+      const population = document.getElementById('id_poblacion');
+      const suggestions = document.getElementById('categorySuggestions');
+      const input = document.getElementById('categoria');
+      const customInput = document.getElementById('categoria_custom');
+      const button = document.getElementById('newCategoryButton');
+
+      const refresh = () => {
+        const current = input.value || record.categoria || '';
+        const categories = suggestedCategories(Number(career.value), Number(population.value));
+        const hasCurrent = categories.some((category) => normalizeText(category) === normalizeText(current));
+
+        suggestions.innerHTML = categories.length
+          ? categories.map((category) => `
+              <button class="category-chip${normalizeText(category) === normalizeText(current) ? ' is-selected' : ''}" type="button" data-category="${escapeHtml(category)}">
+                ${escapeHtml(category)}
+              </button>
+            `).join('')
+          : '<span class="mini muted">No hay categorías sugeridas para esta selección.</span>';
+
+        if (current && !hasCurrent) {
+          showCustomCategory(true);
+        } else {
+          showCustomCategory(false);
+          input.value = current && hasCurrent ? current : categories[0] || '';
+          markSelectedCategory(input.value);
+        }
+      };
+
+      const showCustomCategory = (custom) => {
+        suggestions.classList.toggle('is-hidden', custom);
+        customInput.classList.toggle('is-hidden', !custom);
+        customInput.required = custom;
+        button.textContent = custom ? 'Usar categoría existente' : 'Nueva categoría';
+        if (custom) {
+          customInput.value = input.value;
+          customInput.focus();
+        } else {
+          input.value = suggestions.querySelector('.category-chip.is-selected')?.dataset.category
+            || suggestions.querySelector('.category-chip')?.dataset.category
+            || '';
+          markSelectedCategory(input.value);
+        }
+      };
+
+      const markSelectedCategory = (value) => {
+        suggestions.querySelectorAll('.category-chip').forEach((chip) => {
+          chip.classList.toggle('is-selected', normalizeText(chip.dataset.category) === normalizeText(value));
+        });
+      };
+
+      career.addEventListener('change', refresh);
+      population.addEventListener('change', refresh);
+      suggestions.addEventListener('click', (event) => {
+        const chip = event.target.closest('[data-category]');
+        if (!chip) return;
+        input.value = chip.dataset.category;
+        markSelectedCategory(input.value);
+      });
+      customInput.addEventListener('input', () => {
+        input.value = customInput.value;
+      });
+      button.addEventListener('click', () => {
+        const custom = customInput.classList.contains('is-hidden');
+        showCustomCategory(custom);
+      });
+
+      refresh();
+    }
+
+    function suggestedCategories(idCarrera, idPoblacion) {
+      const questions = mapBy(state.data.questions, 'id_pregunta');
+      const links = state.data.questionLinks || [];
+      const scoped = links
+        .filter((link) => Number(link.id_carrera) === idCarrera && Number(link.id_poblacion) === idPoblacion)
+        .map((link) => questions.get(link.id_pregunta)?.categoria);
+      const careerWide = links
+        .filter((link) => Number(link.id_carrera) === idCarrera)
+        .map((link) => questions.get(link.id_pregunta)?.categoria);
+      const categoryCareers = new Map();
+      links.forEach((link) => {
+        const category = questions.get(link.id_pregunta)?.categoria;
+        if (!category) return;
+        const key = normalizeText(category);
+        if (!categoryCareers.has(key)) {
+          categoryCareers.set(key, { label: displayText(category), careers: new Set() });
+        }
+        categoryCareers.get(key).careers.add(Number(link.id_carrera));
+      });
+      const careerCount = unique((state.data.careers || []).map((career) => career.id_carrera)).length;
+      const shared = [...categoryCareers.values()]
+        .filter((item) => careerCount > 0 && item.careers.size >= careerCount)
+        .map((item) => item.label);
+
+      return unique([...scoped, ...careerWide, ...shared].map(displayText));
+    }
+
+    async function saveSurveyQuestion(original, formData) {
+      const category = String(formData.get('categoria') || formData.get('categoria_sugerida') || '').trim();
+      const payload = {
+        categoria: category,
+        texto_pregunta: String(formData.get('texto_pregunta') || '').trim()
+      };
+      const idCarrera = Number(formData.get('id_carrera'));
+      const idPoblacion = Number(formData.get('id_poblacion'));
+      const isEdit = Boolean(original.id_pregunta && original.id_carrera && original.id_poblacion);
+
+      if (!payload.categoria || !payload.texto_pregunta || !idCarrera || !idPoblacion) {
+        showConnectionMessage('Completa carrera, grupo, categoría y pregunta.');
+        return;
+      }
+
+      let idPregunta = original.id_pregunta;
+      const questionQuery = state.client.from(TABLES.questions);
+      const questionResult = isEdit
+        ? await questionQuery.update(payload).eq('id_pregunta', original.id_pregunta)
+        : await questionQuery.insert(payload).select('id_pregunta').single();
+
+      if (questionResult.error) {
+        showConnectionMessage(`No se pudo guardar la pregunta: ${questionResult.error.message}`);
+        return;
+      }
+
+      if (!isEdit) idPregunta = questionResult.data.id_pregunta;
+
+      if (isEdit && (Number(original.id_carrera) !== idCarrera || Number(original.id_poblacion) !== idPoblacion)) {
+        const { error: deleteError } = await state.client
+          .from(TABLES.questionLinks)
+          .delete()
+          .eq('id_pregunta', original.id_pregunta)
+          .eq('id_carrera', original.id_carrera)
+          .eq('id_poblacion', original.id_poblacion);
+
+        if (deleteError) {
+          showConnectionMessage(`No se pudo actualizar la asociación: ${deleteError.message}`);
+          return;
+        }
+      }
+
+      const { error: linkError } = await state.client
+        .from(TABLES.questionLinks)
+        .upsert({
+          id_pregunta: idPregunta,
+          id_carrera: idCarrera,
+          id_poblacion: idPoblacion
+        });
+
+      if (linkError) {
+        showConnectionMessage(`No se pudo asociar la pregunta: ${linkError.message}`);
+        return;
+      }
+
+      closeModal();
+      await refreshData();
+      state.activeSupport = 'questions';
+      showConnectionMessage('Pregunta guardada correctamente en Supabase.');
+      setTimeout(hideConnectionMessage, 2400);
+    }
+
+    async function removeSurveyQuestionLink(record) {
+      if (!record) return;
+      const accepted = window.confirm('Quitar esta pregunta de la carrera y grupo seleccionados? Las respuestas historicas no se eliminan.');
+      if (!accepted) return;
+
+      const { error } = await state.client
+        .from(TABLES.questionLinks)
+        .delete()
+        .eq('id_pregunta', record.id_pregunta)
+        .eq('id_carrera', record.id_carrera)
+        .eq('id_poblacion', record.id_poblacion);
+
+      if (error) {
+        showConnectionMessage(`No se pudo quitar la pregunta: ${error.message}`);
+        return;
+      }
+
+      await refreshData();
+      state.activeSupport = 'questions';
+      showConnectionMessage('Pregunta retirada de la encuesta. Las respuestas anteriores se conservan.');
+      setTimeout(hideConnectionMessage, 2400);
     }
 
     function openRecordForm(tableKey, record = {}) {
@@ -1512,11 +2335,13 @@
       document.getElementById('modalSubtitle').textContent = subtitle || '';
       document.getElementById('modalBody').innerHTML = body;
       document.getElementById('modalOverlay').classList.add('is-open');
+      document.body.classList.add('modal-open');
       document.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', closeModal));
     }
 
     function closeModal() {
       document.getElementById('modalOverlay').classList.remove('is-open');
+      document.body.classList.remove('modal-open');
     }
 
     function applyPrimaryKeyFilter(query, config, record) {
@@ -1533,6 +2358,30 @@
     function encodeRecordId(config, record) {
       const keys = Array.isArray(config.pk) ? config.pk : [config.pk];
       return keys.map((key) => `${key}:${record[key]}`).join('|');
+    }
+
+    function surveyQuestionRecordId(record) {
+      return [
+        `id_pregunta:${record.id_pregunta}`,
+        `id_carrera:${record.id_carrera}`,
+        `id_poblacion:${record.id_poblacion}`
+      ].join('|');
+    }
+
+    function findSurveyQuestionRecord(encodedId) {
+      const keys = Object.fromEntries(String(encodedId).split('|').map((part) => part.split(':')));
+      const link = (state.data.questionLinks || []).find((record) =>
+        String(record.id_pregunta) === String(keys.id_pregunta)
+        && String(record.id_carrera) === String(keys.id_carrera)
+        && String(record.id_poblacion) === String(keys.id_poblacion));
+      if (!link) return null;
+
+      const question = state.data.questions.find((item) => Number(item.id_pregunta) === Number(link.id_pregunta));
+      return {
+        ...link,
+        categoria: question?.categoria || '',
+        texto_pregunta: question?.texto_pregunta || ''
+      };
     }
 
     function findRecordByEncodedId(tableKey, encodedId) {

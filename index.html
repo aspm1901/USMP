@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="./assets/css/styles.css?v=15">
+  <link rel="stylesheet" href="./assets/css/styles.css?v=28">
 </head>
 <body>
   <header class="topbar">
@@ -71,75 +71,146 @@
             <span class="module-note">Lectura rápida para autoridades y transparencia</span>
           </div>
 
-          <section class="public-intro" aria-label="Transparencia del proceso">
-            Esta vista permite consultar el avance de modificación curricular, sus responsables y evidencias registradas.
-          </section>
-
-          <section class="metrics" aria-label="Indicadores principales">
-            <article class="metric">
-              <div class="metric-label">Expedientes</div>
-              <div id="metricTotal" class="metric-value">0</div>
-              <div class="metric-caption">Procesos curriculares registrados</div>
-            </article>
-            <article class="metric">
-              <div class="metric-label">Avance promedio</div>
-              <div id="metricProgress" class="metric-value">0%</div>
-              <div class="metric-caption">Según historial de fases</div>
-            </article>
-            <article class="metric">
-              <div class="metric-label">Observados</div>
-              <div id="metricObserved" class="metric-value">0</div>
-              <div class="metric-caption">Requieren atención</div>
-            </article>
-            <article class="metric">
-              <div class="metric-label">Finalizados</div>
-              <div id="metricDone" class="metric-value">0</div>
-              <div class="metric-caption">Procesos culminados</div>
-            </article>
-            <article class="metric">
-              <div class="metric-label">Atención activa</div>
-              <div id="metricAttention" class="metric-value">0</div>
-              <div class="metric-caption">Observaciones o fases observadas</div>
-            </article>
-            <article class="metric">
-              <div class="metric-label">Periodo activo</div>
-              <div id="metricActivePeriod" class="metric-value metric-text">-</div>
-              <div class="metric-caption">Último periodo vigente o futuro</div>
-            </article>
-            <article class="metric">
-              <div class="metric-label">Evidencias</div>
-              <div id="metricEvidence" class="metric-value">0</div>
-              <div class="metric-caption">Documentos registrados</div>
-            </article>
-            <article class="metric">
-              <div class="metric-label">Feedback promedio</div>
-              <div id="metricFeedback" class="metric-value">0.0</div>
-              <div class="metric-caption">Escala 1 a 5</div>
-            </article>
-          </section>
-
-          <section class="panel insight-switcher" aria-label="Lectura para autoridades">
-            <div class="panel-header">
+          <section class="dashboard-group" aria-label="Resumen operativo">
+            <div class="dashboard-group-header">
               <div>
-                <h2 id="insightPanelTitle" class="panel-title">Atención requerida</h2>
-                <span id="insightPanelNote" class="panel-note">0 casos</span>
+                <h3>Resumen operativo</h3>
+                <p>Estado general de expedientes, avance y evidencias vigentes.</p>
               </div>
-              <div id="insightTabs" class="insight-tabs"></div>
             </div>
-            <div id="insightPanelList" class="insight-list"></div>
+
+            <section class="public-intro" aria-label="Transparencia del proceso">
+              Esta vista permite consultar el avance de modificación curricular, sus responsables y evidencias registradas.
+            </section>
+
+            <section class="dashboard-controls" aria-label="Filtros del tablero">
+              <p class="dashboard-scope">Los indicadores muestran planes no históricos. Las gráficas de encuesta priorizan planes que aún están en etapa de captar información de grupos de interés.</p>
+              <div class="field">
+                <label for="dashboardCareer">Carrera</label>
+                <select id="dashboardCareer">
+                  <option value="">Todas</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="dashboardPopulation">Grupo de interés</label>
+                <select id="dashboardPopulation">
+                  <option value="">Todos</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="dashboardPlan">Plan</label>
+                <select id="dashboardPlan">
+                  <option value="">Todos</option>
+                </select>
+              </div>
+              <button id="dashboardClearFilters" class="mini-button" type="button">Limpiar</button>
+            </section>
+
+            <section class="metrics" aria-label="Indicadores principales">
+              <article class="metric">
+                <div class="metric-label">Expedientes</div>
+                <div id="metricTotal" class="metric-value">0</div>
+                <div class="metric-caption">Procesos curriculares registrados</div>
+              </article>
+              <article class="metric">
+                <div class="metric-label">Avance promedio</div>
+                <div id="metricProgress" class="metric-value">0%</div>
+                <div class="metric-caption">Según historial de fases</div>
+              </article>
+              <article class="metric">
+                <div class="metric-label">Atención activa</div>
+                <div id="metricAttention" class="metric-value">0</div>
+                <div class="metric-caption">Observaciones o fases observadas</div>
+              </article>
+              <article class="metric">
+                <div class="metric-label">Feedback promedio</div>
+                <div id="metricFeedback" class="metric-value">0.0</div>
+                <div class="metric-caption">Escala 1 a 5</div>
+              </article>
+            </section>
+
+            <section class="metric-strip" aria-label="Indicadores secundarios">
+              <div><span>Observados</span><strong id="metricObserved">0</strong></div>
+              <div><span>Finalizados</span><strong id="metricDone">0</strong></div>
+              <div><span>Periodo activo</span><strong id="metricActivePeriod">-</strong></div>
+              <div><span>Evidencias</span><strong id="metricEvidence">0</strong></div>
+            </section>
           </section>
 
-          <section class="panel compact-legend">
-            <div class="panel-header">
-              <h2 class="panel-title">Leyenda de estados</h2>
-              <span class="panel-note">Interpretación pública</span>
+          <section class="dashboard-group dashboard-group-feedback" aria-label="Encuestas y acciones por feedback">
+            <div class="dashboard-group-header">
+              <div>
+                <h3>Encuestas y acciones por feedback</h3>
+                <p>Prioridades, muestra baja y resultados vinculados a grupos de interés.</p>
+              </div>
             </div>
+
+            <section id="priorityBoard" class="priority-board" aria-label="Prioridades de atención"></section>
+
+            <section class="dashboard-charts" aria-label="Gráficos de feedback curricular">
+              <article class="panel chart-panel chart-panel-wide">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title">Feedback por carrera y grupo</h2>
+                    <span class="panel-note">Promedio en escala 1 a 5</span>
+                  </div>
+                </div>
+                <div id="chartCareerGroup" class="chart-list"></div>
+              </article>
+
+              <article class="panel chart-panel">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title">Semáforo de respuestas</h2>
+                    <span class="panel-note">Distribución general</span>
+                  </div>
+                </div>
+                <div id="chartFeedbackStatus" class="status-chart"></div>
+              </article>
+
+              <article class="panel chart-panel chart-panel-critical">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title">Preguntas críticas</h2>
+                    <span class="panel-note">Menor promedio</span>
+                  </div>
+                </div>
+                <div id="chartCriticalQuestions" class="critical-chart"></div>
+              </article>
+            </section>
+          </section>
+
+          <section class="dashboard-group" aria-label="Seguimiento PC01">
+            <div class="dashboard-group-header">
+              <div>
+                <h3>Seguimiento PC01</h3>
+                <p>Lectura de alertas del proceso y significado de estados.</p>
+              </div>
+            </div>
+
+            <section class="panel insight-switcher" aria-label="Lectura para autoridades">
+              <div class="panel-header">
+                <div>
+                  <h2 id="insightPanelTitle" class="panel-title">Atención requerida</h2>
+                  <span id="insightPanelNote" class="panel-note">0 casos</span>
+                </div>
+                <div id="insightTabs" class="insight-tabs"></div>
+              </div>
+              <div id="insightPanelList" class="insight-list"></div>
+            </section>
+
+            <section class="panel compact-legend">
+              <div class="panel-header">
+                <h2 class="panel-title">Leyenda de estados</h2>
+                <span class="panel-note">Interpretación pública</span>
+              </div>
             <div class="state-legend">
               <span class="legend-item"><span class="badge status-finalizado">Finalizado</span> Proceso culminado</span>
               <span class="legend-item"><span class="badge status-en-curso">En curso</span> Proceso en evaluación</span>
               <span class="legend-item"><span class="badge status-observado">Observado</span> Requiere revisión</span>
               <span class="legend-item"><span class="badge status-missing">Sin registro</span> Paso aún no documentado</span>
             </div>
+            </section>
           </section>
         </section>
 
@@ -244,7 +315,7 @@
     </section>
   </div>
 
-  <script src="./assets/js/app.js?v=15"></script>
+  <script src="./assets/js/app.js?v=28"></script>
 </body>
 </html>
 
