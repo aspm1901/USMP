@@ -38,7 +38,7 @@ Comportamiento actual:
 - Los comentarios por pregunta son opcionales y están ocultos hasta pulsar `Agregar comentario`.
 - Valida correo institucional `@usmp.pe`.
 - Resalta la primera pregunta sin responder antes de enviar.
-- Bloquea respuestas duplicadas por combinación de `correo_institucional`, `id_plan` e `id_poblacion`.
+- Bloquea respuestas duplicadas por `correo_institucional` registrado en `encuesta_participante`.
 
 ## Consultas y reportes
 
@@ -69,6 +69,7 @@ La tabla de feedback conserva el detalle de cada respuesta: fecha, correo, plan,
 Para una demo rápida puede funcionar con RLS desactivado, pero para publicación se recomienda:
 
 - Mantener `SELECT` público solo en tablas necesarias para consulta y encuesta.
-- Permitir `INSERT` público únicamente en `respuesta_encuesta`.
+- Permitir `INSERT` público únicamente en `encuesta_participante` y `respuesta_encuesta`.
 - Restringir `UPDATE` y `DELETE` a usuarios autenticados.
-- Agregar una restricción única en `respuesta_encuesta` para reforzar en base de datos el bloqueo de respuestas duplicadas.
+- Agregar una restricción única en `encuesta_participante` para reforzar en base de datos el bloqueo de respuestas duplicadas por correo.
+- Como mejora futura, crear una tabla `correo_autorizado` para validar que solo respondan correos institucionales previamente habilitados, opcionalmente asociados a un grupo de interés.

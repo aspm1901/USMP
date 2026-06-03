@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="./assets/css/styles.css?v=15">
+  <link rel="stylesheet" href="./assets/css/styles.css?v=36">
 </head>
 <body>
   <header class="topbar">
@@ -32,24 +32,24 @@
     </section>
 
     <section class="panel survey-panel">
-      <div class="hero">
+      <div id="surveyHero" class="hero">
         <div class="hero-row">
           <div>
             <h2>Formulario de feedback curricular</h2>
-            <p class="reason">Tus respuestas ayudan a identificar carreras, cursos y aspectos del plan de estudios que necesitan actualización o mayor apoyo.</p>
+            <p class="reason">Tus respuestas ayudan a identificar oportunidades de mejora en la formación curricular de la carrera.</p>
           </div>
           <span class="badge status-en-curso">Registro público</span>
         </div>
       </div>
 
       <form id="surveyForm" class="survey-form">
-        <div class="section-grid">
+        <div id="surveyIdentity" class="section-grid survey-identity">
           <div class="field">
             <label for="surveyEmail">Correo institucional</label>
             <input id="surveyEmail" name="correo_institucional" type="email" placeholder="usuario@usmp.pe" pattern="^[^@\s]+@usmp\.pe$" required>
           </div>
           <div class="field">
-            <label for="surveyPlan">Carrera / plan</label>
+            <label for="surveyPlan">Carrera evaluada</label>
             <select id="surveyPlan" name="id_plan" required></select>
           </div>
           <div class="field">
@@ -58,15 +58,28 @@
           </div>
         </div>
 
+        <div id="surveyConfirmedSummary" class="survey-confirmed is-hidden"></div>
+
+        <div class="form-actions survey-confirm-actions">
+          <button id="surveyConfirm" class="btn" type="button">Confirmar datos y ver encuesta</button>
+        </div>
+
         <div id="questionList" class="question-list"></div>
 
         <div class="form-actions">
           <button id="surveySubmit" class="btn" type="submit">Enviar respuestas</button>
         </div>
       </form>
+
+      <section id="surveyCompletion" class="survey-completion is-hidden" aria-live="polite">
+        <div class="completion-mark">✓</div>
+        <p class="completion-kicker">Encuesta registrada</p>
+        <h2>Gracias por participar</h2>
+        <p>Tus respuestas fueron registradas correctamente. Gracias por contribuir a la mejora curricular.</p>
+      </section>
     </section>
   </main>
 
-  <script src="./assets/js/survey.js?v=15"></script>
+  <script src="./assets/js/survey.js?v=38"></script>
 </body>
 </html>

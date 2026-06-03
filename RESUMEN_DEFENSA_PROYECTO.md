@@ -19,6 +19,81 @@ En términos simples, la página busca responder estas preguntas:
 - Qué opinan estudiantes, egresados y docentes sobre la carrera o plan evaluado.
 - Qué aspectos requieren atención para la toma de decisiones.
 
+## Evidencia documental usada como base
+
+La propuesta no fue elaborada desde cero ni solo por criterio propio. Se tomó como referencia la documentación colocada en la carpeta `INFO`, que funciona como evidencia de levantamiento documental.
+
+### `INFO/4_Proced(mejor).pdf`
+
+Este documento contiene el "Manual de Procedimientos" del procedimiento PC01: elaboración, evaluación y modificación del currículo de la carrera o programa.
+
+De este documento se tomó como base:
+
+- La existencia del proceso PC01.
+- La secuencia de pasos del proceso curricular.
+- La participación de actores como DUA, CC, DEP, UAC, CDF, Rector y Consejo Universitario.
+- La necesidad de registrar evidencias documentales por etapa.
+- La idea de medir satisfacción de egresados, docentes y estudiantes con el currículo.
+- La justificación de recoger información de grupos de interés mediante cuestionarios o focus group.
+
+Relación con la base de datos:
+
+- Sustenta `proceso_curricular`.
+- Sustenta `catalogo_paso`.
+- Sustenta `historial_fase`.
+- Sustenta `actor_institucional`.
+- Sustenta `evidencia_documental`.
+- Sustenta `poblacion_objetivo`, `pregunta_encuesta` y `respuesta_encuesta`.
+
+### `INFO/PC01 PROCEDIMIENTO DE ELABORACION Y MODIFICACION CURRICULO (2).pdf`
+
+Este archivo contiene el flujograma del procedimiento PC01.
+
+De este documento se tomó como base:
+
+- La representación visual del flujo del proceso.
+- Las evidencias esperadas durante el procedimiento.
+- La existencia de documentos como resolución, plan de trabajo, cronograma, informe de comisión, currículo aprobado y comunicación a SUNEDU.
+- La idea de que el proceso tiene fases sucesivas y responsables.
+
+Relación con la base de datos:
+
+- Refuerza la necesidad de `historial_fase`.
+- Refuerza la necesidad de `evidencia_documental`.
+- Justifica que cada proceso tenga avance, estado, responsables y documentos asociados.
+
+### `INFO/REGLAMENTO( meh).pdf`
+
+Este documento corresponde al reglamento para la revisión y modificación del currículo y del sílabo.
+
+De este documento se tomó como base:
+
+- La definición del currículo como plan de formación.
+- La necesidad de actualización periódica del currículo.
+- La relación entre currículo, objetivos educacionales, contenidos, recursos y evaluación.
+- La revisión integral del currículo.
+- La participación de comisiones, docentes y autoridades académicas.
+- La consideración de mercado laboral, tendencias profesionales, estudiantes, profesores y grupos de interés.
+
+Relación con la base de datos:
+
+- Sustenta `plan_estudio`.
+- Sustenta `curso`.
+- Sustenta `area_academica`.
+- Sustenta `ciclo_academico`.
+- Sustenta `prerrequisito`.
+- Sustenta la necesidad de analizar opiniones de estudiantes, docentes, egresados y otros grupos vinculados.
+
+### Cómo responder si el profesor pide la fuente
+
+Puede responderse:
+
+> "Nos basamos en un levantamiento documental. En la carpeta INFO tenemos el manual de procedimientos PC01, el flujograma PC01 y el reglamento de revisión y modificación curricular. A partir de esos documentos identificamos el proceso, sus actores, pasos, evidencias, planes de estudio, cursos y la necesidad de recoger información de grupos de interés."
+
+Y si el profesor pregunta por qué no se entrevistó:
+
+> "Una entrevista hubiera servido como validación adicional con los dueños del proceso. Sin embargo, para el alcance del curso usamos documentación institucional como fuente primaria. El modelo puede adaptarse luego si los responsables del proceso precisan reglas internas adicionales."
+
 ## Utilidad principal
 
 La utilidad principal del sistema es convertir información dispersa de gestión curricular en información organizada, consultable y accionable.
@@ -348,6 +423,7 @@ Aporta trazabilidad, evidencia y retroalimentación. Permite saber qué se está
 - Crear panel comparativo entre planes históricos y vigentes.
 - Mejorar métricas por periodo académico.
 - Agregar indicadores de participación esperada vs participación real.
+- Crear una tabla `correo_autorizado` para validar que el correo institucional exista y esté habilitado antes de permitir responder la encuesta. Esta tabla podría relacionarse con `poblacion_objetivo` para evitar que un correo autorizado como estudiante responda como egresado o docente.
 
 ## Conclusión para exposición
 

@@ -56,13 +56,22 @@ La encuesta necesita:
 - `SELECT` en `poblacion_objetivo`, porque carga grupos de interés.
 - `SELECT` en `pregunta_encuesta`, porque carga el catálogo de preguntas.
 - `SELECT` en `pregunta_carrera_poblacion`, porque filtra preguntas por carrera y grupo.
-- `SELECT` e `INSERT` en `respuesta_encuesta`, porque valida duplicados y guarda respuestas.
+- `SELECT` e `INSERT` en `encuesta_participante`, porque registra el correo y bloquea duplicados.
+- `SELECT` e `INSERT` en `respuesta_encuesta`, porque guarda las respuestas vinculadas por `id_participante`.
 
-La columna de correo debe existir:
+La tabla de participantes debe existir:
 
 ```sql
+create table if not exists encuesta_participante (
+  id_participante serial primary key,
+  correo_institucional varchar not null,
+  id_plan int not null references plan_estudio(id_plan),
+  id_poblacion int not null references poblacion_objetivo(id_poblacion),
+  fecha_registro timestamp default now()
+);
+
 alter table respuesta_encuesta
-add column if not exists correo_institucional varchar;
+add column if not exists id_participante int references encuesta_participante(id_participante);
 ```
 
 Policies recomendadas si RLS está activo:
@@ -72,6 +81,12 @@ create policy "feedback_visible" on respuesta_encuesta
 for select to anon, authenticated using (true);
 
 create policy "feedback_public_insert" on respuesta_encuesta
+for insert to anon with check (true);
+
+create policy "participante_visible" on encuesta_participante
+for select to anon, authenticated using (true);
+
+create policy "participante_public_insert" on encuesta_participante
 for insert to anon with check (true);
 
 create policy "feedback_admin_update" on respuesta_encuesta
@@ -85,24 +100,23 @@ Para `pregunta_carrera_poblacion`, el archivo `preguntas_por_carrera_grupo.sql` 
 
 ## Respuestas duplicadas
 
-El frontend bloquea un segundo envío cuando encuentra una respuesta previa con la misma combinación:
+El frontend bloquea un segundo envío cuando encuentra un participante previo con el mismo:
 
 - `correo_institucional`
-- `id_plan`
-- `id_poblacion`
 
-Esto evita que una persona responda dos veces la misma encuesta para la misma carrera/plan y grupo de interés.
+Esto evita que una persona responda más de una vez, aunque cambie de carrera o grupo de interés.
 
-Para reforzarlo desde Supabase, revisa `supabase_mejoras_recomendadas.sql`, que incluye una propuesta de índice único parcial para esa combinación.
+Para reforzarlo desde Supabase, revisa `supabase_mejoras_recomendadas.sql`, que incluye un índice único sobre `lower(correo_institucional)` en `encuesta_participante`.
 
 ## Mejoras de modelo para sustentar la exposición
 
 El archivo `supabase_mejoras_recomendadas.sql` contiene mejoras alineadas al curso de base de datos:
 
-- Columna `correo_institucional` en `respuesta_encuesta`.
+- Tabla `encuesta_participante` para guardar el correo una sola vez.
+- Columna `id_participante` en `respuesta_encuesta`.
 - Constraint para dominio `@usmp.pe`.
 - Índices para consultas frecuentes del dashboard.
 - Índice único para evitar duplicar `codigo_curso` dentro del mismo plan.
-- Índice único parcial para evitar respuestas duplicadas por correo, plan y población.
+- Índice único para evitar participantes duplicados por correo.
 
 Antes de ejecutar índices únicos, revisa que no existan datos duplicados. Si ya existen, corrige esos registros primero.

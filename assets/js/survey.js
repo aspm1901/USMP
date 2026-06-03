@@ -8,7 +8,8 @@ const SURVEY_TABLES = {
   populations: 'poblacion_objetivo',
   questions: 'pregunta_encuesta',
   questionLinks: 'pregunta_carrera_poblacion',
-  answers: 'respuesta_encuesta'
+  answers: 'respuesta_encuesta',
+  participants: 'encuesta_participante'
 };
 
 const surveyState = {
@@ -17,7 +18,12 @@ const surveyState = {
   populations: [],
   questions: [],
   questionLinks: [],
-  activeQuestions: []
+  activeQuestions: [],
+  confirmed: false,
+  confirmedPlanId: null,
+  confirmedPopulationId: null,
+  confirmedEmail: '',
+  confirmedParticipantId: null
 };
 
 document.addEventListener('DOMContentLoaded', initSurvey);
@@ -32,8 +38,10 @@ async function initSurvey() {
     const form = document.getElementById('surveyForm');
     form.noValidate = true;
     form.addEventListener('submit', submitSurvey);
-    document.getElementById('surveyPlan').addEventListener('change', renderFilteredQuestions);
-    document.getElementById('surveyPopulation').addEventListener('change', renderFilteredQuestions);
+    document.getElementById('surveyConfirm').addEventListener('click', confirmSurveyIdentity);
+    document.getElementById('surveyEmail').addEventListener('input', resetSurveySelection);
+    document.getElementById('surveyPlan').addEventListener('change', resetSurveySelection);
+    document.getElementById('surveyPopulation').addEventListener('change', resetSurveySelection);
     document.getElementById('questionList').addEventListener('click', handleQuestionListClick);
     showSurveyMessage('Selecciona tu carrera y tipo de participante para ver las preguntas.', false);
   } catch (error) {
@@ -71,7 +79,7 @@ async function loadSurveyData() {
 function renderSurveyForm() {
   const publicPlans = publicCareerOptions(surveyState.plans);
   document.getElementById('surveyPlan').innerHTML = [
-    '<option value="">Seleccionar carrera / plan</option>',
+    '<option value="">Seleccionar carrera</option>',
     ...publicPlans.map((plan) => `<option value="${escapeHtml(plan.id_plan)}">${escapeHtml(planLabel(plan))}</option>`)
   ].join('');
 
@@ -83,38 +91,123 @@ function renderSurveyForm() {
   surveyState.activeQuestions = [];
   document.getElementById('questionList').innerHTML = '<div class="empty">Selecciona una carrera y un tipo de participante para cargar las preguntas.</div>';
   document.getElementById('surveySubmit').disabled = true;
+  document.getElementById('surveyConfirmedSummary').classList.add('is-hidden');
+  document.getElementById('surveyConfirm').disabled = false;
 }
 
-function renderFilteredQuestions() {
+async function confirmSurveyIdentity() {
   const plan = selectedPlan();
   const idPopulation = Number(document.getElementById('surveyPopulation').value);
+  const email = normalizeEmail(document.getElementById('surveyEmail').value);
   const submit = document.getElementById('surveySubmit');
+  const confirm = document.getElementById('surveyConfirm');
+
+  if (!isInstitutionalEmail(email)) {
+    showSurveyMessage('Utilice un correo institucional válido (@usmp.pe).', true);
+    document.getElementById('surveyEmail').focus();
+    return;
+  }
 
   if (!plan || !idPopulation) {
     surveyState.activeQuestions = [];
     document.getElementById('questionList').innerHTML = '<div class="empty">Selecciona una carrera y un tipo de participante para cargar las preguntas.</div>';
     submit.disabled = true;
+    showSurveyMessage('Seleccione carrera evaluada y tipo de participante antes de continuar.', true);
     return;
   }
 
-  const allowedQuestionIds = new Set(surveyState.questionLinks
-    .filter((link) => Number(link.id_carrera) === Number(plan.id_carrera) && Number(link.id_poblacion) === idPopulation)
-    .map((link) => Number(link.id_pregunta)));
+  confirm.disabled = true;
+  confirm.textContent = 'Validando...';
+  showSurveyMessage('Validando si este correo ya respondió la encuesta.', false);
 
-  surveyState.activeQuestions = surveyState.questions
-    .filter((question) => allowedQuestionIds.has(Number(question.id_pregunta)));
+  const duplicated = await alreadyAnswered(email);
+  confirm.disabled = false;
+  confirm.textContent = 'Confirmar datos y ver encuesta';
+
+  if (duplicated.error) {
+    console.error(duplicated.error);
+    showSurveyMessage(duplicateValidationMessage(duplicated.error), true);
+    return;
+  }
+
+  if (duplicated.exists) {
+    surveyState.activeQuestions = [];
+    document.getElementById('questionList').innerHTML = '<div class="empty">Este correo ya registró una encuesta. No puede volver a responder con otra carrera.</div>';
+    submit.disabled = true;
+    showSurveyMessage('Este correo ya respondió una encuesta. No puede volver a llenarla con otra carrera o grupo de interés.', true);
+    return;
+  }
+
+  surveyState.activeQuestions = questionsForSelection(plan, idPopulation);
 
   document.getElementById('questionList').innerHTML = surveyState.activeQuestions.length
     ? `${questionIntroTemplate()}${scoreLegendTemplate()}${surveyState.activeQuestions.map(questionTemplate).join('')}`
     : '<div class="empty">No hay preguntas configuradas para esta carrera y tipo de participante.</div>';
 
   submit.disabled = !surveyState.activeQuestions.length;
+  if (!surveyState.activeQuestions.length) {
+    showSurveyMessage('No hay preguntas configuradas para esta carrera y tipo de participante.', true);
+    return;
+  }
+
+  surveyState.confirmed = true;
+  surveyState.confirmedPlanId = Number(plan.id_plan);
+  surveyState.confirmedPopulationId = idPopulation;
+  surveyState.confirmedEmail = email;
+  surveyState.confirmedParticipantId = null;
+  lockSurveyIdentity(true);
+  renderConfirmedSummary(plan, selectedPopulation(), email);
+  confirm.disabled = true;
+  document.querySelector('.survey-confirm-actions').classList.add('is-hidden');
+  showSurveyMessage('Datos confirmados. Complete la encuesta para enviar sus respuestas.', false);
+}
+
+function resetSurveySelection() {
+  if (surveyState.confirmed) return;
+
+  surveyState.activeQuestions = [];
+  surveyState.confirmedPlanId = null;
+  surveyState.confirmedPopulationId = null;
+  surveyState.confirmedEmail = '';
+  surveyState.confirmedParticipantId = null;
+  document.getElementById('surveyConfirmedSummary').classList.add('is-hidden');
+  document.getElementById('questionList').innerHTML = '<div class="empty">Confirma tus datos para cargar las preguntas de la encuesta.</div>';
+  document.getElementById('surveySubmit').disabled = true;
+  document.getElementById('surveyConfirm').disabled = false;
+  document.getElementById('surveyConfirm').textContent = 'Confirmar datos y ver encuesta';
+  document.querySelector('.survey-confirm-actions').classList.remove('is-hidden');
+}
+
+function questionsForSelection(plan, idPopulation) {
+  const allowedQuestionIds = new Set(surveyState.questionLinks
+    .filter((link) => Number(link.id_carrera) === Number(plan.id_carrera) && Number(link.id_poblacion) === Number(idPopulation))
+    .map((link) => Number(link.id_pregunta)));
+
+  return surveyState.questions
+    .filter((question) => allowedQuestionIds.has(Number(question.id_pregunta)));
+}
+
+function lockSurveyIdentity(locked) {
+  document.getElementById('surveyIdentity').classList.toggle('is-locked', locked);
+  document.getElementById('surveyEmail').disabled = locked;
+  document.getElementById('surveyPlan').disabled = locked;
+  document.getElementById('surveyPopulation').disabled = locked;
+}
+
+function renderConfirmedSummary(plan, population, email) {
+  const summary = document.getElementById('surveyConfirmedSummary');
+  summary.innerHTML = `
+    <strong>Datos confirmados</strong>
+    <span>${escapeHtml(email)}</span>
+    <span>${escapeHtml(plan.nombre_carrera)} · ${escapeHtml(population?.tipo_poblacion || '-')}</span>
+  `;
+  summary.classList.remove('is-hidden');
 }
 
 function questionIntroTemplate() {
   return `
     <section class="question-intro">
-      Evalúa cada aspecto del 1 al 5 según tu experiencia. Los comentarios son opcionales y solo aparecen si deseas agregar una precisión.
+      Evalúa cada aspecto de la formación curricular según tu experiencia. Los comentarios son opcionales y solo aparecen si deseas agregar una precisión.
     </section>
   `;
 }
@@ -180,12 +273,17 @@ async function submitSurvey(event) {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
   const submit = document.getElementById('surveySubmit');
-  const idPlan = Number(form.get('id_plan'));
-  const idPopulation = Number(form.get('id_poblacion'));
-  const email = normalizeEmail(form.get('correo_institucional'));
+  const idPlan = surveyState.confirmedPlanId;
+  const idPopulation = surveyState.confirmedPopulationId;
+  const email = surveyState.confirmedEmail;
 
-  if (!email.endsWith('@usmp.pe')) {
-    showSurveyMessage('Usa un correo institucional válido con dominio @usmp.pe.', true);
+  if (!surveyState.confirmed || !idPlan || !idPopulation) {
+    showSurveyMessage('Confirme sus datos antes de responder la encuesta.', true);
+    return;
+  }
+
+  if (!isInstitutionalEmail(email)) {
+    showSurveyMessage('Utilice un correo institucional válido (@usmp.pe).', true);
     return;
   }
 
@@ -207,7 +305,6 @@ async function submitSurvey(event) {
     id_poblacion: idPopulation,
     valor_respuesta: Number(form.get(`score_${question.id_pregunta}`)),
     comentario: String(form.get(`comment_${question.id_pregunta}`) || '').trim() || null,
-    correo_institucional: email,
     fecha_respuesta: new Date().toISOString()
   }));
 
@@ -215,41 +312,57 @@ async function submitSurvey(event) {
   submit.textContent = 'Verificando...';
   showSurveyMessage('Verificando si este correo ya registró la encuesta.', false);
 
-  const duplicated = await alreadyAnswered(email, idPlan, idPopulation);
+  const duplicated = await alreadyAnswered(email);
   if (duplicated.error) {
     console.error(duplicated.error);
     submit.disabled = false;
     submit.textContent = 'Enviar respuestas';
-    showSurveyMessage('No se pudo validar duplicados. Revisa permisos SELECT en respuesta_encuesta.', true);
+    showSurveyMessage(duplicateValidationMessage(duplicated.error), true);
     return;
   }
 
   if (duplicated.exists) {
     submit.disabled = false;
     submit.textContent = 'Enviar respuestas';
-    showSurveyMessage('Este correo ya registró respuestas para esta carrera y tipo de participante. No es necesario volver a llenar la encuesta.', true);
+    showSurveyMessage('Este correo ya registró una encuesta. No es necesario volver a llenar otra.', true);
     return;
   }
 
   submit.textContent = 'Enviando...';
-  showSurveyMessage('Guardando respuestas en Supabase.', false);
+  showSurveyMessage('Registrando participante y guardando respuestas en Supabase.', false);
 
-  const { error } = await surveyState.client.from(SURVEY_TABLES.answers).insert(payload);
+  let insertResult;
+  try {
+    const participant = await createSurveyParticipant(email, idPlan, idPopulation);
+    if (participant.error) {
+      throw participant.error;
+    }
+
+    surveyState.confirmedParticipantId = participant.id;
+    insertResult = await surveyState.client.from(SURVEY_TABLES.answers).insert(payload.map((answer) => ({
+      ...answer,
+      id_participante: participant.id
+    })));
+  } catch (error) {
+    console.error(error);
+    submit.disabled = false;
+    submit.textContent = 'Enviar respuestas';
+    showSurveyMessage(participantSaveMessage(error), true);
+    return;
+  }
+
+  const { error } = insertResult;
 
   submit.disabled = false;
   submit.textContent = 'Enviar respuestas';
 
   if (error) {
     console.error(error);
-    showSurveyMessage('No se pudo guardar. Verifica que respuesta_encuesta tenga la columna correo_institucional y permiso INSERT anon.', true);
+    showSurveyMessage('No se pudo guardar. Verifica permisos INSERT en respuesta_encuesta y que exista id_participante.', true);
     return;
   }
 
-  event.currentTarget.reset();
-  surveyState.activeQuestions = [];
-  document.getElementById('questionList').innerHTML = '<div class="empty">Selecciona una carrera y un tipo de participante para cargar las preguntas.</div>';
-  document.getElementById('surveySubmit').disabled = true;
-  showSurveyMessage('Tus respuestas fueron registradas correctamente. Gracias por participar en la mejora curricular.', false);
+  showCompletionScreen(event.currentTarget);
 }
 
 function firstMissingQuestion() {
@@ -267,16 +380,107 @@ function firstMissingQuestion() {
   return null;
 }
 
-async function alreadyAnswered(email, idPlan, idPopulation) {
-  const { data, error } = await surveyState.client
-    .from(SURVEY_TABLES.answers)
-    .select('id_respuesta')
+async function alreadyAnswered(email) {
+  const participantResult = await surveyState.client
+    .from(SURVEY_TABLES.participants)
+    .select('id_participante')
     .eq('correo_institucional', email)
-    .eq('id_plan', idPlan)
-    .eq('id_poblacion', idPopulation)
     .limit(1);
 
-  return { exists: Boolean(data?.length), error };
+  if (participantResult.error) {
+    return { exists: false, error: participantResult.error };
+  }
+
+  if (participantResult.data?.length) {
+    return { exists: true, error: null };
+  }
+
+  return { exists: false, error: null };
+}
+
+async function createSurveyParticipant(email, idPlan, idPopulation) {
+  const { data, error } = await surveyState.client
+    .from(SURVEY_TABLES.participants)
+    .insert({
+      correo_institucional: email,
+      id_plan: idPlan,
+      id_poblacion: idPopulation,
+      fecha_registro: new Date().toISOString()
+    })
+    .select('id_participante')
+    .single();
+
+  return { id: data?.id_participante || null, error };
+}
+
+function duplicateValidationMessage(error) {
+  if (error?.code === '42P01' && String(error.message || '').includes('encuesta_participante')) {
+    return 'Falta crear o exponer la tabla encuesta_participante en Supabase.';
+  }
+
+  if (error?.code === '42703' && String(error.message || '').includes('correo_institucional')) {
+    return 'Falta la columna correo_institucional en encuesta_participante.';
+  }
+
+  return 'No se pudo validar si ya respondió. Revise permisos SELECT en encuesta_participante.';
+}
+
+function participantSaveMessage(error) {
+  const message = String(error?.message || '');
+  if (error?.code === '23505') {
+    return 'Este correo ya registró una encuesta. No puede volver a responder.';
+  }
+
+  if (error?.code === '42501' || message.includes('permission denied')) {
+    return 'No se pudo registrar participante. Revise permisos INSERT en encuesta_participante.';
+  }
+
+  if (message.includes('sequence') || message.includes('id_participante_seq')) {
+    return 'Falta permiso sobre la secuencia de encuesta_participante. Otorgue USAGE y SELECT a anon.';
+  }
+
+  return 'No se pudo guardar por un problema con Supabase. Intente nuevamente.';
+}
+
+function resetSurveyAfterSuccess(form) {
+  form?.reset();
+  surveyState.activeQuestions = [];
+  surveyState.confirmed = false;
+  surveyState.confirmedPlanId = null;
+  surveyState.confirmedPopulationId = null;
+  surveyState.confirmedEmail = '';
+  surveyState.confirmedParticipantId = null;
+  lockSurveyIdentity(false);
+  document.getElementById('surveyConfirmedSummary').classList.add('is-hidden');
+  document.getElementById('questionList').innerHTML = '<div class="empty">Selecciona una carrera y un tipo de participante para cargar las preguntas.</div>';
+  document.getElementById('surveySubmit').disabled = true;
+  document.getElementById('surveyConfirm').disabled = false;
+  document.getElementById('surveyConfirm').textContent = 'Confirmar datos y ver encuesta';
+  document.querySelector('.survey-confirm-actions')?.classList.remove('is-hidden');
+}
+
+function showCompletionScreen(form) {
+  const alert = document.getElementById('surveyAlert');
+  const hero = document.getElementById('surveyHero');
+  const surveyForm = document.getElementById('surveyForm');
+  const completion = document.getElementById('surveyCompletion');
+
+  alert?.classList.remove('is-visible', 'is-error');
+  hero?.classList.add('is-hidden');
+  surveyForm?.classList.add('is-hidden');
+  completion?.classList.remove('is-hidden');
+
+  if (hero) hero.style.display = 'none';
+  if (surveyForm) surveyForm.style.display = 'none';
+  if (completion) completion.style.display = 'grid';
+
+  try {
+    resetSurveyAfterSuccess(form);
+  } catch (error) {
+    console.error(error);
+  }
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function showSurveyMessage(message, isError) {
@@ -294,6 +498,11 @@ function planLabel(plan) {
 function selectedPlan() {
   const idPlan = Number(document.getElementById('surveyPlan').value);
   return surveyState.plans.find((plan) => Number(plan.id_plan) === idPlan) || null;
+}
+
+function selectedPopulation() {
+  const idPopulation = Number(document.getElementById('surveyPopulation').value);
+  return surveyState.populations.find((population) => Number(population.id_poblacion) === idPopulation) || null;
 }
 
 function publicCareerOptions(plans) {
@@ -322,6 +531,10 @@ function planRank(plan, priority) {
 
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
+}
+
+function isInstitutionalEmail(value) {
+  return /^[^@\s]+@usmp\.pe$/i.test(normalizeEmail(value));
 }
 
 function normalizeText(value) {

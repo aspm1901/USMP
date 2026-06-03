@@ -19,6 +19,7 @@
       questions: 'pregunta_encuesta',
       questionLinks: 'pregunta_carrera_poblacion',
       answers: 'respuesta_encuesta',
+      participants: 'encuesta_participante',
       prerequisites: 'prerrequisito'
     };
 
@@ -119,7 +120,7 @@
           { name: 'id_pregunta', label: 'Pregunta', type: 'select', source: 'questions', value: 'id_pregunta', text: (item) => `${item.categoria} - ${item.texto_pregunta}` },
           { name: 'id_plan', label: 'Plan', type: 'select', source: 'plans', value: 'id_plan', text: planLabel },
           { name: 'id_poblacion', label: 'Población', type: 'select', source: 'populations', value: 'id_poblacion', text: (item) => item.tipo_poblacion },
-          { name: 'correo_institucional', label: 'Correo institucional', type: 'email', required: false },
+          { name: 'id_participante', label: 'Participante', type: 'select', source: 'participants', value: 'id_participante', text: participantLabel, required: false },
           { name: 'valor_respuesta', label: 'Valor respuesta', type: 'number', min: 1, max: 5 },
           { name: 'comentario', label: 'Comentario', type: 'textarea' },
           { name: 'fecha_respuesta', label: 'Fecha respuesta', type: 'datetime-local' }
@@ -170,6 +171,7 @@
     async function refreshData() {
       const previousSelectedId = state.selectedId;
       state.data = await loadReadOnlyData(state.client);
+      hydrateAnswerParticipants();
       state.processes = buildProcesses(state.data);
       state.filtered = state.processes;
       state.selectedId = state.processes.some((item) => item.id === previousSelectedId)
@@ -188,6 +190,18 @@
       }));
 
       return Object.fromEntries(entries);
+    }
+
+    function hydrateAnswerParticipants() {
+      const participants = mapBy(state.data.participants || [], 'id_participante');
+      state.data.answers = (state.data.answers || []).map((answer) => {
+        const participant = participants.get(answer.id_participante);
+        return {
+          ...answer,
+          correo_participante: participant?.correo_institucional || answer.correo_institucional || '',
+          participante: participant || null
+        };
+      });
     }
 
     function bindEvents() {
@@ -490,6 +504,7 @@
       if (!container) return;
       const plans = mapBy(state.data.plans, 'id_plan');
       const populations = mapBy(state.data.populations, 'id_poblacion');
+      const questions = mapBy(state.data.questions, 'id_pregunta');
       const rows = Array.from(groupBy(dashboardAnswers(), (answer) => [
         dashboardPlanTitle(plans.get(answer.id_plan)),
         dashboardPlanMeta(plans.get(answer.id_plan)),
@@ -498,11 +513,23 @@
         .map(([key, answers]) => {
           const [career, planMeta, population] = key.split('||');
           const avg = average(answers.map((answer) => Number(answer.valor_respuesta)));
+          const criticalAnswers = answers.filter((answer) => Number(answer.valor_respuesta) < 3);
+          const criticalQuestionCount = new Set(criticalAnswers.map((answer) => answer.id_pregunta)).size;
+          const topCritical = Array.from(groupBy(criticalAnswers, 'id_pregunta').entries())
+            .map(([idQuestion, questionAnswers]) => ({
+              question: questions.get(Number(idQuestion)),
+              avg: average(questionAnswers.map((answer) => Number(answer.valor_respuesta)))
+            }))
+            .sort((a, b) => a.avg - b.avg)[0];
+
           return {
             career,
-            population: `${displayText(planMeta)} - ${displayText(population)}`,
+            planMeta: displayText(planMeta),
+            population: displayText(population),
             avg,
             count: answers.length,
+            criticalQuestionCount,
+            topCriticalLabel: topCritical?.question?.categoria || '',
             status: feedbackStatus(avg)
           };
         })
@@ -510,7 +537,7 @@
         .slice(0, 8);
 
       container.innerHTML = rows.length
-        ? rows.map((item) => barChartRowTemplate(item.career, item.population, item.avg, item.count, item.status)).join('')
+        ? rows.map(feedbackGroupRowTemplate).join('')
         : emptyTemplate('Aún no hay respuestas suficientes para graficar.');
     }
 
@@ -580,6 +607,32 @@
           </div>
           <div class="bar-track">
             <div class="bar-fill ${status.className}" style="width:${Math.min(100, Math.max(0, value * 20))}%"></div>
+          </div>
+        </article>
+      `;
+    }
+
+    function feedbackGroupRowTemplate(item) {
+      const sample = item.count < 3 ? '<span class="sample-note">Muestra baja</span>' : '';
+      const critical = item.criticalQuestionCount
+        ? `<span class="sample-note sample-note-danger">${item.criticalQuestionCount} pregunta(s) crítica(s)</span>`
+        : '<span class="sample-note sample-note-ok">Sin críticas</span>';
+      const topCritical = item.topCriticalLabel
+        ? `<small>Aspecto más sensible: ${escapeHtml(displayText(item.topCriticalLabel))}</small>`
+        : '<small>Sin preguntas críticas detectadas.</small>';
+
+      return `
+        <article class="bar-row feedback-group-row">
+          <div class="bar-row-head">
+            <div>
+              <strong>${escapeHtml(item.career)}</strong>
+              <span>${escapeHtml(item.planMeta)} - ${escapeHtml(item.population)} - ${item.count} respuesta(s) ${sample} ${critical}</span>
+              ${topCritical}
+            </div>
+            <b class="${item.status.className}">${item.avg.toFixed(1)}</b>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill ${item.status.className}" style="width:${Math.min(100, Math.max(0, item.avg * 20))}%"></div>
           </div>
         </article>
       `;
@@ -1465,44 +1518,181 @@
         return;
       }
 
-      const actions = [
-        ['processes', 'Nuevo expediente', 'Registra un proceso curricular PC01.'],
-        ['history', 'Nueva fase', 'Agrega un paso ejecutado dentro de la trazabilidad.'],
-        ['evidence', 'Nueva evidencia', 'Vincula un documento a una fase registrada.'],
-        ['plans', 'Nuevo plan', 'Crea una versión de plan de estudio.'],
-        ['courses', 'Nuevo curso', 'Agrega cursos a un plan curricular.'],
-        ['prerequisites', 'Nuevo prerrequisito', 'Relaciona cursos objetivo y previos.']
+      const actionGroups = [
+        {
+          title: 'Proceso PC01',
+          note: 'Expedientes, fases y evidencias del proceso curricular.',
+          actions: [
+            ['processes', 'Nuevo expediente', 'Registra un proceso curricular PC01.'],
+            ['history', 'Nueva fase', 'Agrega un paso ejecutado dentro de la trazabilidad.'],
+            ['evidence', 'Nueva evidencia', 'Vincula un documento a una fase registrada.']
+          ]
+        },
+        {
+          title: 'Modelo curricular',
+          note: 'Planes, cursos y reglas académicas del plan de estudios.',
+          actions: [
+            ['plans', 'Nuevo plan', 'Crea una versión de plan de estudio.'],
+            ['courses', 'Nuevo curso', 'Agrega cursos a un plan curricular.'],
+            ['prerequisites', 'Nuevo prerrequisito', 'Relaciona cursos objetivo y previos.']
+          ]
+        }
       ];
       const surveyUrl = new URL('encuesta.html', window.location.href).href;
       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(surveyUrl)}`;
+      const diagnostics = adminDiagnostics();
+      const pending = adminPendingItems();
 
       container.innerHTML = `
         <div class="admin-home-body">
-          <div class="survey-qr-card">
-            <img src="${qrUrl}" alt="QR para formulario de encuesta">
-            <div>
-              <strong>Formulario público de encuesta</strong>
-              <p>Comparte este QR para que estudiantes, egresados o docentes registren feedback. Sus respuestas alimentan el tablero y las alertas.</p>
-              <a class="mini-button" href="./encuesta.html" target="_blank" rel="noopener">Abrir formulario</a>
-            </div>
+          <div class="admin-insight-grid">
+            ${diagnostics.map(adminStatTemplate).join('')}
           </div>
-          <div class="admin-action-grid">
-            ${actions.map(([tableKey, title, text]) => `
-              <article class="admin-action-card">
+
+          <div class="admin-dashboard-grid">
+            <section class="admin-section-card admin-section-main">
+              <div class="admin-section-header">
                 <div>
-                  <strong>${escapeHtml(title)}</strong>
-                  <p>${escapeHtml(text)}</p>
+                  <h3>Encuesta y participantes</h3>
+                  <p>Control del formulario público y de la información que alimenta el tablero.</p>
                 </div>
-                <button class="mini-button" type="button" data-admin-action="add-record" data-table-key="${tableKey}">Crear</button>
-              </article>
+              </div>
+              <div class="survey-qr-card">
+                <img src="${qrUrl}" alt="QR para formulario de encuesta">
+                <div>
+                  <strong>Formulario público de encuesta</strong>
+                  <p>Comparte este QR para que estudiantes, egresados o docentes registren feedback. Sus respuestas alimentan el tablero, el semáforo y las preguntas críticas.</p>
+                  <div class="admin-button-row">
+                    <a class="mini-button" href="./encuesta.html" target="_blank" rel="noopener">Abrir formulario</a>
+                    <button class="mini-button" type="button" data-admin-action="add-survey-question">Agregar pregunta</button>
+                    <button class="mini-button" type="button" data-admin-support="answers">Ver feedback</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="admin-section-card">
+              <div class="admin-section-header">
+                <div>
+                  <h3>Pendientes administrativos</h3>
+                  <p>Elementos que conviene revisar antes de presentar o tomar decisiones.</p>
+                </div>
+              </div>
+              <div class="admin-pending-list">
+                ${pending.length ? pending.map(adminPendingTemplate).join('') : emptyTemplate('No hay pendientes administrativos detectados.')}
+              </div>
+            </section>
+          </div>
+
+          <div class="admin-maintenance-grid">
+            ${actionGroups.map((group) => `
+              <section class="admin-section-card">
+                <div class="admin-section-header">
+                  <div>
+                    <h3>${escapeHtml(group.title)}</h3>
+                    <p>${escapeHtml(group.note)}</p>
+                  </div>
+                </div>
+                <div class="admin-action-grid">
+                  ${group.actions.map(([tableKey, title, text]) => `
+                    <article class="admin-action-card">
+                      <div>
+                        <strong>${escapeHtml(title)}</strong>
+                        <p>${escapeHtml(text)}</p>
+                      </div>
+                      <button class="mini-button" type="button" data-admin-action="add-record" data-table-key="${tableKey}">Crear</button>
+                    </article>
+                  `).join('')}
+                </div>
+              </section>
             `).join('')}
           </div>
+
           <div class="admin-login-note">
-            Para editar o eliminar registros existentes usa el módulo Consultas o el detalle del expediente seleccionado.
+            Para editar o eliminar registros existentes usa el módulo Consultas o el detalle del expediente seleccionado. Esta pestaña queda como centro de mantenimiento rápido para el administrador.
           </div>
         </div>
       `;
       bindAdminActionButtons();
+      bindAdminSupportShortcuts();
+    }
+
+    function adminDiagnostics() {
+      const unassignedQuestions = adminUnassignedQuestions();
+      const currentProcesses = currentDashboardProcesses();
+      const participants = state.data.participants || [];
+      return [
+        {
+          label: 'Participantes',
+          value: participants.length,
+          note: `${state.data.answers.length} respuesta(s) registradas`
+        },
+        {
+          label: 'Preguntas',
+          value: state.data.questions.length,
+          note: `${state.data.questionLinks.length} asignación(es) por carrera y grupo`
+        },
+        {
+          label: 'Sin asignación',
+          value: unassignedQuestions.length,
+          note: 'Preguntas que no aparecerán en la encuesta'
+        },
+        {
+          label: 'Sin evidencia',
+          value: currentProcesses.filter((item) => !normalizeText(item.status).includes('finalizado') && item.evidence.length === 0).length,
+          note: 'Expedientes vigentes o activos sin respaldo'
+        }
+      ];
+    }
+
+    function adminUnassignedQuestions() {
+      const assignedIds = new Set((state.data.questionLinks || []).map((link) => Number(link.id_pregunta)));
+      return (state.data.questions || []).filter((question) => !assignedIds.has(Number(question.id_pregunta)));
+    }
+
+    function adminPendingItems() {
+      const unassignedQuestions = adminUnassignedQuestions().slice(0, 2).map((question) => ({
+        label: 'Pregunta sin asignación',
+        title: displayText(question.categoria || `Pregunta ${question.id_pregunta}`),
+        detail: displayText(question.texto_pregunta || 'Sin texto registrado.'),
+        meta: 'Asignar carrera y grupo de interés',
+        className: 'priority-warning'
+      }));
+      const evidence = missingEvidenceItems().slice(0, 2);
+      const lowSample = lowSampleItems().slice(0, 1);
+      return [...unassignedQuestions, ...evidence, ...lowSample].slice(0, 5);
+    }
+
+    function adminStatTemplate(item) {
+      return `
+        <article class="admin-stat-card">
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${escapeHtml(item.value)}</strong>
+          <p>${escapeHtml(item.note)}</p>
+        </article>
+      `;
+    }
+
+    function adminPendingTemplate(item) {
+      return `
+        <article class="priority-item ${escapeHtml(item.className || 'priority-warning')}">
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${escapeHtml(item.title)}</strong>
+          <p>${escapeHtml(item.detail)}</p>
+          <em>${escapeHtml(item.meta)}</em>
+        </article>
+      `;
+    }
+
+    function bindAdminSupportShortcuts() {
+      document.querySelectorAll('[data-admin-support]').forEach((button) => {
+        button.addEventListener('click', () => {
+          state.activeModule = 'model';
+          state.activeSupport = button.dataset.adminSupport;
+          renderSupport();
+          renderActiveModule();
+        });
+      });
     }
 
     function adminToolbarForSupport(activeSupport) {
@@ -1556,7 +1746,7 @@
       const summary = feedbackSummaryTemplate(state.data.answers, questions, populations, plans);
       const rows = state.data.answers.map((answer) => ({
         fecha: formatDate(answer.fecha_respuesta),
-        correo: answer.correo_institucional || '-',
+        correo: answer.correo_participante || '-',
         plan: planLabel(plans.get(answer.id_plan)),
         poblacion: displayText(populations.get(answer.id_poblacion)?.tipo_poblacion || '-'),
         categoria: displayText(questions.get(answer.id_pregunta)?.categoria || '-'),
@@ -1623,7 +1813,7 @@
       if (!answers.length) return '';
 
       const participantKeys = answers.map((answer) => [
-        answer.correo_institucional,
+        answer.id_participante || answer.correo_participante || `respuesta-${answer.id_respuesta}`,
         answer.id_plan,
         answer.id_poblacion
       ].join('|'));
@@ -1636,7 +1826,7 @@
           label: planLabel(plans.get(Number(planId))),
           avg: average(planAnswers.map((answer) => Number(answer.valor_respuesta))),
           count: planAnswers.length,
-          participants: unique(planAnswers.map((answer) => answer.correo_institucional || `respuesta-${answer.id_respuesta}`)).length
+          participants: unique(planAnswers.map(participantKey)).length
         }))
         .sort((a, b) => a.avg - b.avg)
         .slice(0, 3);
@@ -1651,7 +1841,7 @@
             population: displayText(population),
             avg: average(groupAnswers.map((answer) => Number(answer.valor_respuesta))),
             count: groupAnswers.length,
-            participants: unique(groupAnswers.map((answer) => answer.correo_institucional || `respuesta-${answer.id_respuesta}`)).length
+            participants: unique(groupAnswers.map(participantKey)).length
           };
         })
         .sort((a, b) => a.career.localeCompare(b.career, 'es') || a.population.localeCompare(b.population, 'es'));
@@ -1660,7 +1850,7 @@
           label: displayText(population),
           avg: average(populationAnswers.map((answer) => Number(answer.valor_respuesta))),
           count: populationAnswers.length,
-          participants: unique(populationAnswers.map((answer) => answer.correo_institucional || `respuesta-${answer.id_respuesta}`)).length
+          participants: unique(populationAnswers.map(participantKey)).length
         }))
         .sort((a, b) => a.label.localeCompare(b.label, 'es'));
       const byCategory = Array.from(groupBy(answers, (answer) => questions.get(answer.id_pregunta)?.categoria || 'Sin categoría').entries())
@@ -2463,6 +2653,15 @@
     function planLabel(plan) {
       if (!plan) return 'Sin plan';
       return `${displayText(plan.nombre_carrera)} ${plan.anio_version} - ${plan.total_creditos_requeridos} créd. - ${displayText(plan.estado)}`;
+    }
+
+    function participantLabel(participant) {
+      if (!participant) return 'Sin participante';
+      return `${displayText(participant.correo_institucional)} - ${planLabel(state.data.plans.find((plan) => plan.id_plan === participant.id_plan))}`;
+    }
+
+    function participantKey(answer) {
+      return answer.id_participante || answer.correo_participante || `respuesta-${answer.id_respuesta}`;
     }
 
     function areaName(id) {
