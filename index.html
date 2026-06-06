@@ -13,7 +13,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="./assets/css/styles.css?v=48">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="stylesheet" href="./assets/css/styles.css?v=50">
 </head>
 <body>
   <header class="topbar">
@@ -49,6 +51,10 @@
           <button class="module-nav-button" type="button" data-module-target="feedback">
             <span class="ui-icon nav-icon" aria-hidden="true">📝</span>
             <span class="nav-copy"><span class="nav-label">Encuestas</span><small>Feedback</small></span>
+          </button>
+          <button class="module-nav-button" type="button" data-module-target="malla">
+            <span class="ui-icon nav-icon" aria-hidden="true">🗺️</span>
+            <span class="nav-copy"><span class="nav-label">Malla</span><small>Diseño curricular</small></span>
           </button>
           <button class="module-nav-button" type="button" data-module-target="model">
             <span class="ui-icon nav-icon" aria-hidden="true">🔎</span>
@@ -306,6 +312,66 @@
           </section>
         </section>
 
+        <section class="module-page" data-module-page="malla">
+          <div class="module-heading">
+            <div style="display:flex;align-items:center;gap:12px">
+              <button type="button" id="mallaBackBtn" class="mini-button" title="Volver al tablero" style="padding:6px 12px;font-size:16px">← Volver</button>
+              <div>
+                <p class="module-kicker">Diseño curricular</p>
+                <h2><span class="heading-icon" aria-hidden="true">🗺️</span>Malla curricular</h2>
+              </div>
+            </div>
+            <span class="module-note">Visualiza y diseña la malla de un plan de estudios</span>
+          </div>
+
+          <div class="malla-wrapper">
+            <section class="malla-process-bar" aria-label="Selección de proceso">
+              <div class="field">
+                <label for="mallaProcess">Proceso curricular</label>
+                <select id="mallaProcess">
+                  <option value="">Selecciona un proceso</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="mallaPlan">Plan de estudios</label>
+                <select id="mallaPlan">
+                  <option value="">Selecciona un plan</option>
+                </select>
+              </div>
+            </section>
+
+            <div id="mallaReadonlyBanner" class="malla-readonly-banner is-hidden">
+              ⚠️ Este proceso no está en fase de diseño curricular (Paso 6). Vista de solo lectura.
+            </div>
+
+            <div id="mallaToolbar" class="malla-toolbar">
+              <button class="mini-button primary" type="button" id="mallaAddCourseBtn">+ Agregar curso</button>
+              <button class="mini-button" type="button" id="mallaAddAreaBtn">+ Nueva área</button>
+              <button class="mini-button" type="button" id="mallaAddPrereqBtn">+ Prerrequisito</button>
+              <div class="malla-stats" id="mallaStats"></div>
+              <button class="mini-button" type="button" id="mallaExportPdf" style="margin-left:auto">📄 Exportar PDF</button>
+            </div>
+
+            <div id="mallaEmpty" class="empty is-hidden">Selecciona un proceso y un plan para visualizar la malla curricular.</div>
+
+            <div class="malla-container" id="mallaContainer" style="display:none">
+              <div class="malla-grid" id="mallaGrid"></div>
+              <svg id="mallaArrows" class="malla-arrows-svg">
+                <defs>
+                  <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" fill="rgba(80,80,80,0.45)"/>
+                  </marker>
+                  <marker id="arrowheadRed" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" fill="#b22222"/>
+                  </marker>
+                </defs>
+              </svg>
+            </div>
+
+            <div id="mallaLegend" class="malla-legend is-hidden"></div>
+          </div>
+        </section>
+
         <section class="module-page" data-module-page="records">
           <div class="module-heading">
             <div>
@@ -411,7 +477,7 @@
     </section>
   </div>
 
-  <script src="./assets/js/app.js?v=49"></script>
+  <script src="./assets/js/app.js?v=50"></script>
 </body>
 </html>
 

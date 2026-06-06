@@ -1,4 +1,4 @@
-﻿:root {
+:root {
       --usmp-red: #b22222;
       --usmp-red-strong: #8e1c1c;
       --usmp-gold: #d7a33d;
@@ -2824,6 +2824,371 @@
         opacity: 1;
         transform: translateY(0);
       }
+    }
+
+    /* === MALLA CURRICULAR === */
+
+    .malla-wrapper {
+      display: grid;
+      gap: 16px;
+    }
+
+    .malla-process-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-end;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--soft);
+    }
+
+    .malla-process-bar .field {
+      flex: 1 1 200px;
+      min-width: 0;
+    }
+
+    .malla-readonly-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border: 1px solid var(--warning);
+      border-radius: var(--radius);
+      background: rgba(215, 163, 61, 0.08);
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .malla-toolbar {
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 14px;
+      border: 1px solid rgba(178, 34, 34, 0.15);
+      border-radius: var(--radius);
+      background: #fff8f8;
+    }
+
+    .admin-mode .malla-toolbar.is-editable {
+      display: flex;
+    }
+
+    .malla-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      padding: 4px 0;
+      margin-left: auto;
+    }
+
+    .malla-stats strong {
+      color: var(--ink);
+    }
+
+    .malla-container {
+      position: relative;
+      overflow-x: auto;
+      padding: 4px 0 16px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .malla-grid {
+      display: grid;
+      gap: 5px;
+      position: relative;
+      z-index: 5;
+    }
+
+    .malla-cycle-header {
+      text-align: center;
+      font-weight: 800;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 10px 4px;
+      background: var(--ink);
+      color: #fff;
+      border-radius: 6px;
+    }
+
+    .malla-cycle-col {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      min-width: 128px;
+    }
+
+    .malla-course {
+      position: relative;
+      padding: 9px 8px;
+      border-radius: 5px;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.3;
+      cursor: pointer;
+      transition: transform 150ms ease, box-shadow 150ms ease, opacity 200ms ease;
+      min-height: 52px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .malla-course:hover {
+      transform: scale(1.06);
+      box-shadow: 0 6px 22px rgba(0,0,0,0.28);
+      z-index: 10;
+    }
+
+    .malla-course-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      word-break: break-word;
+    }
+
+    .malla-course-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 4px;
+    }
+
+    .malla-course-credits {
+      display: inline-block;
+      background: rgba(255,255,255,0.3);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .malla-course-code {
+      font-size: 9px;
+      opacity: 0.75;
+    }
+
+    .malla-course-delete,
+    .malla-course-edit {
+      position: absolute;
+      top: 2px;
+      width: 18px;
+      height: 18px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.35);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    .malla-course-delete { right: 2px; }
+    .malla-course-edit { right: 22px; }
+
+    .malla-course:hover .malla-course-delete,
+    .malla-course:hover .malla-course-edit {
+      display: flex;
+    }
+
+    .malla-course.is-elective {
+      background: repeating-linear-gradient(
+        45deg, rgba(0,0,0,0.04), rgba(0,0,0,0.04) 4px,
+        transparent 4px, transparent 8px
+      ) !important;
+      border: 2px dashed var(--line-strong);
+      color: var(--ink);
+    }
+
+    .malla-course.is-elective .malla-course-credits {
+      background: rgba(0,0,0,0.08);
+    }
+
+    .malla-empty-slot {
+      min-height: 52px;
+      border: 2px dashed var(--line);
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 150ms ease, background 150ms ease;
+    }
+
+    .malla-empty-slot:hover {
+      border-color: var(--usmp-red);
+      background: rgba(178, 34, 34, 0.04);
+      color: var(--usmp-red);
+    }
+
+    .malla-credits-row {
+      text-align: center;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 8px 4px;
+      color: var(--ink);
+      background: var(--soft);
+      border-radius: 5px;
+    }
+
+    .malla-credits-accum {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      padding: 2px 4px;
+    }
+
+    .malla-arrows-svg {
+      display: none;
+    }
+
+    .malla-course {
+      z-index: 3;
+    }
+
+    .malla-arrow {
+      fill: none;
+      stroke-width: 1.5;
+      transition: stroke 200ms ease, stroke-width 200ms ease, opacity 200ms ease;
+      opacity: 0.6;
+    }
+
+    .malla-arrow.is-chain {
+      opacity: 1;
+      stroke-width: 3.5;
+    }
+
+    .malla-course-prereqs {
+      font-size: 8px;
+      font-weight: 700;
+      margin-top: 3px;
+      opacity: 0.85;
+      background: rgba(0,0,0,0.15);
+      padding: 2px 4px;
+      border-radius: 3px;
+      display: inline-block;
+      align-self: flex-start;
+    }
+
+    .malla-course.is-chain {
+      transform: scale(1.06);
+      box-shadow: 0 4px 16px rgba(178, 34, 34, 0.35);
+      outline: 2px solid var(--usmp-red);
+      z-index: 10;
+    }
+
+    .malla-course.is-dimmed {
+      opacity: 0.2;
+    }
+
+
+
+    .malla-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--soft);
+    }
+
+    .malla-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .malla-legend-swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: 1px solid rgba(0,0,0,0.12);
+      flex-shrink: 0;
+    }
+
+    .malla-legend-picker {
+      width: 28px;
+      height: 28px;
+      border: 2px solid var(--line);
+      border-radius: 5px;
+      padding: 1px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: border-color 150ms ease, transform 150ms ease;
+    }
+
+    .malla-legend-picker:hover {
+      border-color: var(--usmp-red);
+      transform: scale(1.15);
+    }
+
+    .malla-legend-name {
+      cursor: pointer;
+      border-bottom: 1px dashed transparent;
+      transition: border-color 150ms ease, color 150ms ease;
+    }
+
+    .malla-legend-name:hover {
+      border-bottom-color: var(--usmp-red);
+      color: var(--usmp-red);
+    }
+
+    /* Cuando la malla está activa: sidebar se oculta, contenido a pantalla completa */
+    .malla-active .app-shell {
+      grid-template-columns: 1fr;
+    }
+
+    .malla-active .module-sidebar {
+      display: none;
+    }
+
+    .malla-active .module-content {
+      max-width: 100%;
+    }
+
+    .malla-tooltip {
+      position: fixed;
+      z-index: 1000;
+      max-width: 280px;
+      padding: 12px;
+      border-radius: var(--radius);
+      background: var(--ink);
+      color: #fff;
+      font-size: 12px;
+      line-height: 1.5;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+      pointer-events: none;
+    }
+
+    .malla-tooltip strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .malla-tooltip span {
+      display: block;
+      opacity: 0.7;
+      font-size: 11px;
     }
 
     @media (max-width: 1180px) {

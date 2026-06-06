@@ -1,4 +1,4 @@
-﻿const CONFIG = {
+const CONFIG = {
       SUPABASE_URL: 'https://syanolcxbjarcmpxkmqf.supabase.co',
       SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5YW5vbGN4YmphcmNtcHhrbXFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MzA2OTYsImV4cCI6MjA5NDQwNjY5Nn0.bV93pPhfVpBGBRpodmttKuHf57ty7kFE0gUkB4jnwsQ'
     };
@@ -52,7 +52,10 @@
       supportPages: {},
       supportPageSize: 10,
       user: null,
-      isAdmin: false
+      isAdmin: false,
+      mallaProcessId: null,
+      mallaPlanId: null,
+      mallaEditable: false
     };
 
     const EDIT_CONFIG = {
@@ -240,6 +243,13 @@
       document.getElementById('feedbackPopulation').addEventListener('change', updateFeedbackFilter);
       document.getElementById('feedbackPlan').addEventListener('change', updateFeedbackFilter);
       document.getElementById('feedbackClearFilters').addEventListener('click', clearFeedbackFilters);
+      document.getElementById('mallaProcess').addEventListener('change', onMallaProcessChange);
+      document.getElementById('mallaPlan').addEventListener('change', onMallaPlanChange);
+      document.getElementById('mallaAddCourseBtn').addEventListener('click', mallaAddCourse);
+      document.getElementById('mallaAddAreaBtn').addEventListener('click', mallaAddArea);
+      document.getElementById('mallaAddPrereqBtn').addEventListener('click', mallaAddPrerequisite);
+      document.getElementById('mallaBackBtn').addEventListener('click', () => { state.activeModule = 'dashboard'; render(); });
+      document.getElementById('mallaExportPdf').addEventListener('click', mallaExportPdf);
       document.getElementById('loginButton').addEventListener('click', openLoginModal);
       document.getElementById('logoutButton').addEventListener('click', signOut);
       document.getElementById('modalClose').addEventListener('click', closeModal);
@@ -542,6 +552,7 @@
       renderDetail();
       renderSupport();
       renderAdminHome();
+      renderMalla();
     }
 
     function renderDashboardSections() {
@@ -558,6 +569,7 @@
       document.querySelectorAll('[data-module-page]').forEach((section) => {
         section.classList.toggle('is-active', section.dataset.modulePage === state.activeModule);
       });
+      document.body.classList.toggle('malla-active', state.activeModule === 'malla');
     }
 
     function renderMetrics() {
@@ -3317,6 +3329,965 @@
       };
       return labels[value] || String(value).replace(/_/g, ' ');
     }
+
+
+    /* ================================================================
+       MALLA CURRICULAR — Fase 1
+       ================================================================ */
+
+    const MALLA_DESIGN_STEP = 6;
+
+    function renderMalla() {
+      populateMallaProcessSelector();
+      const planId = state.mallaPlanId;
+      const container = document.getElementById('mallaContainer');
+      const empty = document.getElementById('mallaEmpty');
+      const legend = document.getElementById('mallaLegend');
+      const toolbar = document.getElementById('mallaToolbar');
+      const banner = document.getElementById('mallaReadonlyBanner');
+
+      if (!planId) {
+        container.style.display = 'none';
+        empty.classList.remove('is-hidden');
+        legend.classList.add('is-hidden');
+        toolbar.classList.remove('is-editable');
+        banner.classList.add('is-hidden');
+        return;
+      }
+
+      empty.classList.add('is-hidden');
+      container.style.display = '';
+
+      if (state.mallaEditable) {
+        toolbar.classList.add('is-editable');
+        banner.classList.add('is-hidden');
+      } else {
+        toolbar.classList.remove('is-editable');
+        banner.classList.remove('is-hidden');
+      }
+
+      const courses = state.data.courses.filter((c) => c.id_plan === planId);
+      const cycles = state.data.cycles.slice().sort((a, b) => a.numero_ciclo - b.numero_ciclo);
+      const areas = mapBy(state.data.areas, 'id_area');
+
+      renderMallaStats(courses, cycles);
+      renderMallaGrid(courses, cycles, areas);
+      renderMallaLegend(courses, areas);
+      // Delay para que el layout se estabilice antes de calcular posiciones
+      setTimeout(() => renderMallaArrows(courses, areas), 80);
+    }
+
+    function populateMallaProcessSelector() {
+      const select = document.getElementById('mallaProcess');
+      const processes = state.processes || [];
+      const currentVal = state.mallaProcessId;
+
+      const designProcs = processes.filter((p) => p.currentStep >= MALLA_DESIGN_STEP);
+      const otherProcs = processes.filter((p) => p.currentStep < MALLA_DESIGN_STEP);
+
+      let html = '<option value="">Selecciona un proceso</option>';
+      if (designProcs.length) {
+        html += '<optgroup label="En diseño curricular (Paso 6+)">';
+        designProcs.forEach((p) => {
+          const career = p.evaluatedPlan?.nombre_carrera || p.newPlan?.nombre_carrera || 'Sin carrera';
+          html += `<option value="${p.id}" ${p.id === currentVal ? 'selected' : ''}>${escapeHtml(career)} — ${escapeHtml(p.status)}</option>`;
+        });
+        html += '</optgroup>';
+      }
+      if (otherProcs.length) {
+        html += '<optgroup label="Otros procesos (solo lectura)">';
+        otherProcs.forEach((p) => {
+          const career = p.evaluatedPlan?.nombre_carrera || p.newPlan?.nombre_carrera || 'Sin carrera';
+          html += `<option value="${p.id}" ${p.id === currentVal ? 'selected' : ''}>${escapeHtml(career)} — ${escapeHtml(p.status)}</option>`;
+        });
+        html += '</optgroup>';
+      }
+      select.innerHTML = html;
+    }
+
+    function onMallaProcessChange() {
+      const val = document.getElementById('mallaProcess').value;
+      state.mallaProcessId = val ? Number(val) : null;
+      state.mallaPlanId = null;
+
+      const proc = state.processes.find((p) => p.id === state.mallaProcessId);
+      state.mallaEditable = proc ? proc.currentStep >= MALLA_DESIGN_STEP && state.isAdmin : false;
+
+      const planSelect = document.getElementById('mallaPlan');
+      let html = '<option value="">Selecciona un plan</option>';
+      if (proc) {
+        if (proc.newPlan) html += `<option value="${proc.newPlan.id_plan}">Plan nuevo — ${escapeHtml(proc.newPlan.anio_version)} ${escapeHtml(proc.newPlan.nombre_carrera)}</option>`;
+        if (proc.evaluatedPlan) html += `<option value="${proc.evaluatedPlan.id_plan}">Plan evaluado — ${escapeHtml(proc.evaluatedPlan.anio_version)} ${escapeHtml(proc.evaluatedPlan.nombre_carrera)}</option>`;
+      }
+      planSelect.innerHTML = html;
+
+      if (proc && proc.newPlan) {
+        state.mallaPlanId = proc.newPlan.id_plan;
+        planSelect.value = String(proc.newPlan.id_plan);
+      }
+      renderMalla();
+    }
+
+    function onMallaPlanChange() {
+      const val = document.getElementById('mallaPlan').value;
+      state.mallaPlanId = val ? Number(val) : null;
+      renderMalla();
+    }
+
+    function renderMallaStats(courses, cycles) {
+      const stats = document.getElementById('mallaStats');
+      const totalCredits = courses.reduce((s, c) => s + (c.creditos || 0), 0);
+      const usedCycles = new Set(courses.map((c) => c.id_ciclo)).size;
+      const usedAreas = new Set(courses.map((c) => c.id_area)).size;
+      stats.innerHTML = `
+        <span><strong>${courses.length}</strong> cursos</span>
+        <span><strong>${totalCredits}</strong> créditos</span>
+        <span><strong>${usedCycles}</strong> ciclos</span>
+        <span><strong>${usedAreas}</strong> áreas</span>
+      `;
+    }
+
+    function renderMallaGrid(courses, cycles, areas) {
+      const grid = document.getElementById('mallaGrid');
+      if (!courses.length) {
+        grid.innerHTML = '<div class="empty" style="grid-column:1/-1">No hay cursos registrados para este plan. Usa el botón "+ Agregar curso" para comenzar a diseñar la malla.</div>';
+        grid.style.gridTemplateColumns = '1fr';
+        return;
+      }
+
+      const usedCycleIds = new Set(courses.map((c) => c.id_ciclo));
+      const activeCycles = cycles.filter((cy) => usedCycleIds.has(cy.id_ciclo));
+      if (!activeCycles.length) {
+        grid.innerHTML = '<div class="empty" style="grid-column:1/-1">Los cursos no tienen ciclo asignado.</div>';
+        return;
+      }
+
+      grid.style.gridTemplateColumns = `repeat(${activeCycles.length}, 1fr)`;
+
+      const grouped = {};
+      activeCycles.forEach((cy) => { grouped[cy.id_ciclo] = []; });
+      courses.forEach((c) => {
+        if (grouped[c.id_ciclo]) grouped[c.id_ciclo].push(c);
+      });
+
+      // --- Ordenamiento topológico y por cadenas ---
+      const prereqs = state.data.prerequisites || [];
+      const courseRowMap = new Map(); // id_curso -> row index
+
+      // Calculamos peso de cada curso (descendientes directos e indirectos)
+      function calcWeight(id, visited = new Set()) {
+        if (visited.has(id)) return 0;
+        visited.add(id);
+        const children = prereqs.filter((p) => p.id_curso_previo === id);
+        let w = children.length;
+        children.forEach((p) => { w += calcWeight(p.id_curso_objetivo, visited); });
+        return w;
+      }
+
+      const weights = {};
+      courses.forEach((c) => { weights[c.id_curso] = calcWeight(c.id_curso); });
+
+      activeCycles.forEach((cy) => {
+        const arr = grouped[cy.id_ciclo];
+        if (!arr) return;
+
+        arr.forEach((c) => {
+          // Buscamos si tiene prerrequisitos que ya fueron ubicados en ciclos anteriores
+          const incoming = prereqs.filter((p) => p.id_curso_objetivo === c.id_curso);
+          const incomingRows = incoming.map(p => courseRowMap.get(p.id_curso_previo)).filter(r => r !== undefined);
+          c._targetRow = incomingRows.length ? Math.min(...incomingRows) : 999;
+          c._weight = weights[c.id_curso];
+        });
+
+        arr.sort((a, b) => {
+          // Si ambos tienen un "target row", el que deba estar más arriba va primero
+          if (a._targetRow !== b._targetRow) return a._targetRow - b._targetRow;
+          // Luego, los que tengan más "peso" (cadena más larga) van primero
+          if (a._weight !== b._weight) return b._weight - a._weight;
+          // Desempate por área
+          const aArea = areas.get(a.id_area)?.nombre_area || '';
+          const bArea = areas.get(b.id_area)?.nombre_area || '';
+          return aArea.localeCompare(bArea, 'es') || a.nombre.localeCompare(b.nombre, 'es');
+        });
+
+        // Guardamos la fila final en la que quedó cada curso en este ciclo
+        arr.forEach((c, index) => {
+          courseRowMap.set(c.id_curso, index);
+        });
+      });
+
+      const maxRows = Math.max(...Object.values(grouped).map((arr) => arr.length), 1);
+
+      let html = '';
+
+      activeCycles.forEach((cy) => {
+        html += `<div class="malla-cycle-header" style="grid-column:auto">Ciclo ${cy.numero_ciclo}</div>`;
+      });
+
+      for (let row = 0; row < maxRows; row++) {
+        activeCycles.forEach((cy) => {
+          const course = grouped[cy.id_ciclo][row];
+          if (course) {
+            html += mallaCourseCell(course, areas);
+          } else {
+            html += `<div class="malla-empty-slot" data-cycle="${cy.id_ciclo}">+</div>`;
+          }
+        });
+      }
+
+      let accumCredits = 0;
+      activeCycles.forEach((cy) => {
+        const cycleCredits = grouped[cy.id_ciclo].reduce((s, c) => s + (c.creditos || 0), 0);
+        html += `<div class="malla-credits-row">${cycleCredits} cr.</div>`;
+      });
+
+      activeCycles.forEach((cy) => {
+        const cycleCredits = grouped[cy.id_ciclo].reduce((s, c) => s + (c.creditos || 0), 0);
+        accumCredits += cycleCredits;
+        html += `<div class="malla-credits-accum">${accumCredits} ac.</div>`;
+      });
+
+      grid.innerHTML = html;
+
+      grid.querySelectorAll('.malla-course').forEach((el) => {
+        el.addEventListener('mouseenter', () => highlightChain(Number(el.dataset.courseId)));
+        el.addEventListener('mouseleave', clearChainHighlight);
+        el.addEventListener('click', (e) => {
+          if (e.target.classList.contains('malla-course-delete') || e.target.classList.contains('malla-course-edit')) return;
+          showCourseTooltip(e, Number(el.dataset.courseId));
+        });
+      });
+
+      grid.querySelectorAll('.malla-course-edit').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          mallaEditCourse(Number(btn.dataset.courseId));
+        });
+      });
+
+      grid.querySelectorAll('.malla-course-delete').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          mallaDeleteCourse(Number(btn.dataset.courseId));
+        });
+      });
+    }
+
+    function mallaCourseCell(course, areas) {
+      const area = areas.get(course.id_area);
+      const color = area?.color_hexadecimal || '#888888';
+      const isElective = course.es_electivo;
+      const adminBtns = state.mallaEditable
+        ? `<button class="malla-course-edit" data-course-id="${course.id_curso}" title="Editar curso">✎</button><button class="malla-course-delete" data-course-id="${course.id_curso}" title="Eliminar curso">✕</button>`
+        : '';
+
+      return `
+        <div class="malla-course ${isElective ? 'is-elective' : ''}"
+             data-course-id="${course.id_curso}"
+             style="${isElective ? '' : `background-color:${color}`}">
+          ${adminBtns}
+          <div class="malla-course-name">${escapeHtml(course.nombre)}</div>
+          <div class="malla-course-bottom">
+            <span class="malla-course-code">${escapeHtml(course.codigo_curso)}</span>
+            <span class="malla-course-credits">${course.creditos} cr.</span>
+          </div>
+        </div>`;
+    }
+
+    function renderMallaLegend(courses, areas) {
+      const legend = document.getElementById('mallaLegend');
+      if (!courses.length) { legend.classList.add('is-hidden'); return; }
+
+      const usedAreaIds = [...new Set(courses.map((c) => c.id_area))];
+      const items = usedAreaIds.map((id) => {
+        const area = areas.get(id);
+        if (!area) return '';
+        const currentColor = area.color_hexadecimal && area.color_hexadecimal.startsWith('#') ? area.color_hexadecimal : '#888888';
+        if (state.isAdmin) {
+          return `<div class="malla-legend-item">
+            <input type="color" class="malla-legend-picker" data-area-id="${id}" value="${currentColor}" title="Cambiar color">
+            <span class="malla-legend-name" data-area-id="${id}" title="Clic para editar área">${escapeHtml(area.nombre_area)}</span>
+          </div>`;
+        }
+        return `<div class="malla-legend-item"><span class="malla-legend-swatch" style="background:${currentColor}"></span>${escapeHtml(area.nombre_area)}</div>`;
+      }).filter(Boolean);
+
+      legend.innerHTML = items.join('');
+      legend.classList.remove('is-hidden');
+
+      legend.querySelectorAll('.malla-legend-picker').forEach((picker) => {
+        picker.addEventListener('change', async (e) => {
+          const areaId = Number(e.target.dataset.areaId);
+          const newColor = e.target.value;
+          const { error } = await state.client.from(TABLES.areas).update({ color_hexadecimal: newColor }).eq('id_area', areaId);
+          if (error) { alert('Error al actualizar color: ' + error.message); return; }
+          await refreshData();
+          showConnectionMessage('Color actualizado.');
+          setTimeout(hideConnectionMessage, 2000);
+        });
+      });
+
+      legend.querySelectorAll('.malla-legend-name').forEach((name) => {
+        name.addEventListener('click', () => mallaEditArea(Number(name.dataset.areaId)));
+      });
+    }
+
+    async function mallaEditArea(areaId) {
+      const area = state.data.areas.find((a) => a.id_area === areaId);
+      if (!area) return;
+      const currentColor = area.color_hexadecimal && area.color_hexadecimal.startsWith('#') ? area.color_hexadecimal : '#888888';
+
+      const body = `
+        <form id="mallaEditAreaForm" class="form-grid">
+          <div class="field">
+            <label>Nombre del área</label>
+            <input type="text" name="nombre_area" required value="${escapeHtml(area.nombre_area)}">
+          </div>
+          <div class="field">
+            <label>Color hexadecimal</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="color" name="color_hexadecimal" value="${currentColor}" style="width:50px;height:40px;cursor:pointer;border:1px solid var(--line);border-radius:6px">
+              <input type="text" name="color_hex_text" value="${currentColor}" style="flex:1;font-family:monospace" pattern="^#[0-9A-Fa-f]{6}$" placeholder="#2E86C1">
+            </div>
+          </div>
+          <div class="wide" style="text-align:right;padding-top:8px">
+            <button type="submit" class="mini-button primary">Guardar cambios</button>
+          </div>
+        </form>
+      `;
+
+      openModal('Editar área académica', escapeHtml(area.nombre_area), body);
+
+      const colorInput = document.querySelector('#mallaEditAreaForm [name="color_hexadecimal"]');
+      const textInput = document.querySelector('#mallaEditAreaForm [name="color_hex_text"]');
+      colorInput.addEventListener('input', () => { textInput.value = colorInput.value; });
+      textInput.addEventListener('input', () => { if (/^#[0-9A-Fa-f]{6}$/.test(textInput.value)) colorInput.value = textInput.value; });
+
+      document.getElementById('mallaEditAreaForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const updates = {
+          nombre_area: form.nombre_area.value.trim(),
+          color_hexadecimal: form.color_hexadecimal.value
+        };
+
+        const { error } = await state.client.from(TABLES.areas).update(updates).eq('id_area', areaId);
+        if (error) { alert('Error al editar área: ' + error.message); return; }
+
+        closeModal();
+        await refreshData();
+        showConnectionMessage('Área actualizada.');
+        setTimeout(hideConnectionMessage, 2400);
+      });
+    }
+
+    /* --- Flechas SVG de prerrequisitos (Fase 2 inline) --- */
+
+    function renderMallaArrows(courses, areas) {
+      const svg = document.getElementById('mallaArrows');
+      const container = document.getElementById('mallaContainer');
+      // Limpiar flechas anteriores
+      const defs = svg.querySelector('defs');
+      svg.innerHTML = '';
+      if (defs) svg.appendChild(defs);
+
+      const courseIds = new Set(courses.map((c) => c.id_curso));
+      const prereqs = (state.data.prerequisites || []).filter((p) =>
+        courseIds.has(p.id_curso_objetivo) && courseIds.has(p.id_curso_previo)
+      );
+      if (!prereqs.length) { svg.style.display = 'none'; return; }
+
+      // Ajustar tamaño del SVG al contenedor
+      const containerRect = container.getBoundingClientRect();
+      svg.setAttribute('width', container.scrollWidth);
+      svg.setAttribute('height', container.scrollHeight);
+      svg.style.display = '';
+      svg.style.width = container.scrollWidth + 'px';
+      svg.style.height = container.scrollHeight + 'px';
+
+      prereqs.forEach((p) => {
+        const fromEl = container.querySelector(`[data-course-id="${p.id_curso_previo}"]`);
+        const toEl = container.querySelector(`[data-course-id="${p.id_curso_objetivo}"]`);
+        if (!fromEl || !toEl) return;
+
+        const fromCourse = courses.find((c) => c.id_curso === p.id_curso_previo);
+        const areaColor = fromCourse && areas ? (areas.get(fromCourse.id_area)?.color_hexadecimal || '#888') : '#888';
+
+        const fromRect = fromEl.getBoundingClientRect();
+        const toRect = toEl.getBoundingClientRect();
+
+        const x1 = fromRect.right - containerRect.left + 2;
+        const y1 = fromRect.top + fromRect.height / 2 - containerRect.top;
+        const x2 = toRect.left - containerRect.left - 2;
+        const y2 = toRect.top + toRect.height / 2 - containerRect.top;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        
+        let d = '';
+        if (Math.abs(y1 - y2) < 10) {
+          // Están en la misma línea horizontal, línea recta
+          d = `M${x1},${y1} L${x2},${y2}`;
+        } else {
+          // Diferente línea: línea ortogonal (derecha, arriba/abajo, derecha)
+          // Usamos un offset para que las líneas no se encimen perfectamente si hay múltiples
+          const offset = 8 + (p.id_curso_previo % 5) * 4;
+          const midX = x1 + offset;
+          d = `M${x1},${y1} L${midX},${y1} L${midX},${y2} L${x2},${y2}`;
+        }
+
+        path.setAttribute('d', d);
+        path.setAttribute('class', 'malla-arrow');
+        path.setAttribute('marker-end', 'url(#arrowhead)');
+        path.setAttribute('stroke', areaColor);
+        path.setAttribute('stroke-dasharray', '5 3');
+        path.dataset.from = p.id_curso_previo;
+        path.dataset.to = p.id_curso_objetivo;
+        svg.appendChild(path);
+      });
+    }
+
+    /* --- Highlight de cadena de prerrequisitos --- */
+
+    function highlightChain(courseId) {
+      const courseIds = new Set();
+      const visited = new Set();
+
+      function walkBack(id) {
+        if (visited.has(id)) return;
+        visited.add(id);
+        courseIds.add(id);
+        (state.data.prerequisites || []).filter((p) => p.id_curso_objetivo === id).forEach((p) => walkBack(p.id_curso_previo));
+      }
+      function walkForward(id) {
+        if (visited.has(id)) return;
+        visited.add(id);
+        courseIds.add(id);
+        (state.data.prerequisites || []).filter((p) => p.id_curso_previo === id).forEach((p) => walkForward(p.id_curso_objetivo));
+      }
+
+      walkBack(courseId);
+      visited.clear();
+      walkForward(courseId);
+
+      document.querySelectorAll('.malla-course').forEach((el) => {
+        const id = Number(el.dataset.courseId);
+        if (courseIds.has(id)) {
+          el.classList.add('is-chain');
+          el.classList.remove('is-dimmed');
+        } else {
+          el.classList.remove('is-chain');
+          el.classList.add('is-dimmed');
+        }
+      });
+
+      document.querySelectorAll('.malla-arrow').forEach((path) => {
+        const from = Number(path.dataset.from);
+        const to = Number(path.dataset.to);
+        if (courseIds.has(from) && courseIds.has(to)) {
+          path.classList.add('is-chain');
+          path.setAttribute('marker-end', 'url(#arrowheadRed)');
+        } else {
+          path.classList.remove('is-chain');
+        }
+      });
+    }
+
+    function clearChainHighlight() {
+      document.querySelectorAll('.malla-course').forEach((el) => {
+        el.classList.remove('is-chain', 'is-dimmed');
+      });
+      document.querySelectorAll('.malla-arrow').forEach((path) => {
+        path.classList.remove('is-chain');
+        path.setAttribute('marker-end', 'url(#arrowhead)');
+      });
+    }
+
+    /* --- Tooltip --- */
+
+    function showCourseTooltip(event, courseId) {
+      const existing = document.querySelector('.malla-tooltip');
+      if (existing) existing.remove();
+
+      const course = state.data.courses.find((c) => c.id_curso === courseId);
+      if (!course) return;
+
+      const area = state.data.areas.find((a) => a.id_area === course.id_area);
+      const cycle = state.data.cycles.find((cy) => cy.id_ciclo === course.id_ciclo);
+      const prereqs = (state.data.prerequisites || [])
+        .filter((p) => p.id_curso_objetivo === courseId)
+        .map((p) => state.data.courses.find((c) => c.id_curso === p.id_curso_previo)?.nombre || '?');
+
+      const tip = document.createElement('div');
+      tip.className = 'malla-tooltip';
+      tip.innerHTML = `
+        <strong>${escapeHtml(course.nombre)}</strong>
+        <span>Código: ${escapeHtml(course.codigo_curso)}</span>
+        <span>Créditos: ${course.creditos}</span>
+        <span>Área: ${escapeHtml(area?.nombre_area || '—')}</span>
+        <span>Ciclo: ${escapeHtml(cycle?.denominacion || '—')}</span>
+        <span>Modalidad: ${escapeHtml(course.modalidad || '—')}</span>
+        ${prereqs.length ? `<span>Prerrequisitos: ${prereqs.map((n) => escapeHtml(n)).join(', ')}</span>` : ''}
+      `;
+      document.body.appendChild(tip);
+
+      const rect = event.currentTarget.getBoundingClientRect();
+      tip.style.left = `${Math.min(rect.left, window.innerWidth - 300)}px`;
+      tip.style.top = `${rect.bottom + 8}px`;
+
+      setTimeout(() => { if (tip.parentNode) tip.remove(); }, 4000);
+      document.addEventListener('click', function handler() {
+        if (tip.parentNode) tip.remove();
+        document.removeEventListener('click', handler);
+      }, { once: true });
+    }
+
+    /* --- Formularios CRUD de malla --- */
+
+    async function mallaAddCourse() {
+      if (!state.mallaPlanId) return;
+
+      const cycleOptions = state.data.cycles
+        .slice().sort((a, b) => a.numero_ciclo - b.numero_ciclo)
+        .map((cy) => `<option value="${cy.id_ciclo}">${cy.numero_ciclo}. ${escapeHtml(cy.denominacion)}</option>`)
+        .join('');
+
+      const areaOptions = state.data.areas
+        .map((a) => `<option value="${a.id_area}">${escapeHtml(a.nombre_area)}</option>`)
+        .join('');
+
+      const body = `
+        <form id="mallaAddCourseForm" class="form-grid">
+          <div class="field">
+            <label>Código</label>
+            <input type="text" name="codigo_curso" required placeholder="Ej: SIS011">
+          </div>
+          <div class="field">
+            <label>Nombre</label>
+            <input type="text" name="nombre" required placeholder="Nombre del curso">
+          </div>
+          <div class="field">
+            <label>Ciclo</label>
+            <select name="id_ciclo" required>${cycleOptions}</select>
+          </div>
+          <div class="field">
+            <label>Área académica</label>
+            <div style="display:flex;gap:6px">
+              <select name="id_area" id="mallaAddCourseArea" required style="flex:1">${areaOptions}</select>
+              <button type="button" id="mallaInlineAddArea" class="mini-button" style="white-space:nowrap">+ Nueva</button>
+            </div>
+          </div>
+          <div id="mallaInlineAreaFields" class="field wide" style="display:none;gap:8px;align-items:flex-end">
+            <div class="field" style="flex:1;margin:0">
+              <label>Nombre del área nueva</label>
+              <input type="text" id="mallaInlineAreaName" placeholder="Ej: Formación General">
+            </div>
+            <div class="field" style="width:60px;margin:0">
+              <label>Color</label>
+              <input type="color" id="mallaInlineAreaColor" value="#2E86C1" style="width:100%;height:36px;cursor:pointer;border:1px solid var(--line);border-radius:6px">
+            </div>
+            <button type="button" id="mallaInlineAreaSave" class="mini-button primary" style="height:36px">Crear</button>
+          </div>
+          <div class="field">
+            <label>Créditos</label>
+            <input type="number" name="creditos" required min="1" max="10" value="4">
+          </div>
+          <div class="field">
+            <label>Modalidad</label>
+            <select name="modalidad">
+              <option>Presencial</option>
+              <option>Semipresencial</option>
+              <option>Virtual</option>
+            </select>
+          </div>
+          <div class="field" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" name="es_electivo" id="mallaElectiveCheck">
+            <label for="mallaElectiveCheck" style="margin:0">Es electivo</label>
+          </div>
+          <div class="wide" style="text-align:right;padding-top:8px">
+            <button type="submit" class="mini-button primary">Agregar curso</button>
+          </div>
+        </form>
+      `;
+
+      openModal('Agregar curso a la malla', 'Se añadirá al plan seleccionado', body);
+
+      document.getElementById('mallaInlineAddArea').addEventListener('click', () => {
+        const fields = document.getElementById('mallaInlineAreaFields');
+        fields.style.display = fields.style.display === 'none' ? 'flex' : 'none';
+      });
+
+      document.getElementById('mallaInlineAreaSave').addEventListener('click', async () => {
+        const name = document.getElementById('mallaInlineAreaName').value.trim();
+        const color = document.getElementById('mallaInlineAreaColor').value;
+        if (!name) { alert('Escribe un nombre para el área.'); return; }
+
+        const { data, error } = await state.client.from(TABLES.areas).insert({ nombre_area: name, color_hexadecimal: color }).select().single();
+        if (error) { alert('Error: ' + error.message); return; }
+
+        await refreshData();
+        const select = document.getElementById('mallaAddCourseArea');
+        select.innerHTML = state.data.areas.map((a) => `<option value="${a.id_area}" ${a.id_area === data.id_area ? 'selected' : ''}>${escapeHtml(a.nombre_area)}</option>`).join('');
+        document.getElementById('mallaInlineAreaFields').style.display = 'none';
+        showConnectionMessage('Área "' + name + '" creada.');
+        setTimeout(hideConnectionMessage, 2400);
+      });
+
+      document.getElementById('mallaAddCourseForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const record = {
+          id_plan: state.mallaPlanId,
+          codigo_curso: form.codigo_curso.value.trim(),
+          nombre: form.nombre.value.trim(),
+          id_ciclo: Number(form.id_ciclo.value),
+          id_area: Number(form.id_area.value),
+          creditos: Number(form.creditos.value),
+          modalidad: form.modalidad.value,
+          es_electivo: form.es_electivo.checked
+        };
+
+        const { error } = await state.client.from(TABLES.courses).insert(record);
+        if (error) { alert('Error al agregar curso: ' + error.message); return; }
+
+        closeModal();
+        await refreshData();
+        showConnectionMessage('Curso agregado a la malla.');
+        setTimeout(hideConnectionMessage, 2400);
+      });
+    }
+
+    async function mallaAddArea() {
+      const body = `
+        <form id="mallaAddAreaForm" class="form-grid">
+          <div class="field">
+            <label>Nombre del área</label>
+            <input type="text" name="nombre_area" required placeholder="Ej: Ciencias de la Computación">
+          </div>
+          <div class="field">
+            <label>Color</label>
+            <input type="color" name="color_hexadecimal" value="#2E86C1" style="width:100%;height:40px;cursor:pointer;border:1px solid var(--line);border-radius:6px">
+          </div>
+          <div class="wide" style="text-align:right;padding-top:8px">
+            <button type="submit" class="mini-button primary">Crear área</button>
+          </div>
+        </form>
+      `;
+
+      openModal('Nueva área académica', 'El color se usará en la malla curricular', body);
+
+      document.getElementById('mallaAddAreaForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const record = {
+          nombre_area: form.nombre_area.value.trim(),
+          color_hexadecimal: form.color_hexadecimal.value
+        };
+
+        const { error } = await state.client.from(TABLES.areas).insert(record);
+        if (error) { alert('Error al crear área: ' + error.message); return; }
+
+        closeModal();
+        await refreshData();
+        showConnectionMessage('Área académica creada.');
+        setTimeout(hideConnectionMessage, 2400);
+      });
+    }
+
+    async function mallaAddPrerequisite() {
+      if (!state.mallaPlanId) return;
+
+      const courses = state.data.courses
+        .filter((c) => c.id_plan === state.mallaPlanId)
+        .slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+
+      const cycles = state.data.cycles
+        .slice().sort((a, b) => a.numero_ciclo - b.numero_ciclo);
+
+      const cycleOptions = cycles.map((cy) =>
+        `<option value="${cy.id_ciclo}">Ciclo ${cy.numero_ciclo}</option>`
+      ).join('');
+
+      const body = `
+        <form id="mallaAddPrereqForm" class="form-grid">
+          <div class="field">
+            <label>Ciclo del prerrequisito</label>
+            <select id="prereqCyclePrev">${cycleOptions}</select>
+          </div>
+          <div class="field">
+            <label>Ciclo del curso objetivo</label>
+            <select id="prereqCycleObj">${cycleOptions}</select>
+          </div>
+          <div class="field">
+            <label>Curso previo (prerrequisito)</label>
+            <select name="id_curso_previo" id="prereqSelectPrev" required></select>
+          </div>
+          <div class="field">
+            <label>Curso objetivo (requiere al anterior)</label>
+            <select name="id_curso_objetivo" id="prereqSelectObj" required></select>
+          </div>
+          <div class="field wide">
+            <label>Comentario (opcional)</label>
+            <textarea name="comentarios_regla" rows="2" placeholder="Ej: Aprobado con nota mínima 11"></textarea>
+          </div>
+          <div class="wide" style="text-align:right;padding-top:8px">
+            <button type="submit" class="mini-button primary">Vincular prerrequisito</button>
+          </div>
+        </form>
+      `;
+
+      openModal('Agregar prerrequisito', 'Filtra por ciclo para encontrar los cursos', body);
+
+      function fillCourseSelect(selectId, cycleId) {
+        const filtered = courses.filter((c) => c.id_ciclo === Number(cycleId));
+        const sel = document.getElementById(selectId);
+        sel.innerHTML = filtered.length
+          ? filtered.map((c) => `<option value="${c.id_curso}">${escapeHtml(c.nombre)}</option>`).join('')
+          : '<option value="">Sin cursos en este ciclo</option>';
+      }
+
+      const cyclePrev = document.getElementById('prereqCyclePrev');
+      const cycleObj = document.getElementById('prereqCycleObj');
+
+      fillCourseSelect('prereqSelectPrev', cyclePrev.value);
+      if (cycles.length > 1) cycleObj.value = cycles[1].id_ciclo;
+      fillCourseSelect('prereqSelectObj', cycleObj.value);
+
+      cyclePrev.addEventListener('change', () => fillCourseSelect('prereqSelectPrev', cyclePrev.value));
+      cycleObj.addEventListener('change', () => fillCourseSelect('prereqSelectObj', cycleObj.value));
+
+      document.getElementById('mallaAddPrereqForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const previo = Number(form.id_curso_previo.value);
+        const objetivo = Number(form.id_curso_objetivo.value);
+
+        if (!previo || !objetivo) { alert('Selecciona ambos cursos.'); return; }
+        if (previo === objetivo) { alert('El curso previo y el objetivo no pueden ser el mismo.'); return; }
+
+        const prevCycle = courses.find((c) => c.id_curso === previo);
+        const objCycle = courses.find((c) => c.id_curso === objetivo);
+        if (prevCycle && objCycle && prevCycle.id_ciclo >= objCycle.id_ciclo) {
+          if (!confirm('⚠️ El prerrequisito está en un ciclo igual o posterior al curso objetivo. ¿Continuar?')) return;
+        }
+
+        const record = {
+          id_curso_previo: previo,
+          id_curso_objetivo: objetivo,
+          comentarios_regla: form.comentarios_regla.value.trim() || null
+        };
+
+        const { error } = await state.client.from(TABLES.prerequisites).insert(record);
+        if (error) { alert('Error al agregar prerrequisito: ' + error.message); return; }
+
+        closeModal();
+        await refreshData();
+        showConnectionMessage('Prerrequisito vinculado.');
+        setTimeout(hideConnectionMessage, 2400);
+      });
+    }
+
+    async function mallaEditCourse(courseId) {
+      const course = state.data.courses.find((c) => c.id_curso === courseId);
+      if (!course) return;
+
+      const cycleOptions = state.data.cycles
+        .slice().sort((a, b) => a.numero_ciclo - b.numero_ciclo)
+        .map((cy) => `<option value="${cy.id_ciclo}" ${cy.id_ciclo === course.id_ciclo ? 'selected' : ''}>${cy.numero_ciclo}. ${escapeHtml(cy.denominacion)}</option>`)
+        .join('');
+
+      const areaOptions = state.data.areas
+        .map((a) => `<option value="${a.id_area}" ${a.id_area === course.id_area ? 'selected' : ''}>${escapeHtml(a.nombre_area)}</option>`)
+        .join('');
+
+      const body = `
+        <form id="mallaEditCourseForm" class="form-grid">
+          <div class="field">
+            <label>Código</label>
+            <input type="text" name="codigo_curso" required value="${escapeHtml(course.codigo_curso)}">
+          </div>
+          <div class="field">
+            <label>Nombre</label>
+            <input type="text" name="nombre" required value="${escapeHtml(course.nombre)}">
+          </div>
+          <div class="field">
+            <label>Ciclo</label>
+            <select name="id_ciclo" required>${cycleOptions}</select>
+          </div>
+          <div class="field">
+            <label>Área académica</label>
+            <select name="id_area" required>${areaOptions}</select>
+          </div>
+          <div class="field">
+            <label>Créditos</label>
+            <input type="number" name="creditos" required min="1" max="10" value="${course.creditos}">
+          </div>
+          <div class="field">
+            <label>Modalidad</label>
+            <select name="modalidad">
+              <option ${course.modalidad === 'Presencial' ? 'selected' : ''}>Presencial</option>
+              <option ${course.modalidad === 'Semipresencial' ? 'selected' : ''}>Semipresencial</option>
+              <option ${course.modalidad === 'Virtual' ? 'selected' : ''}>Virtual</option>
+            </select>
+          </div>
+          <div class="field" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" name="es_electivo" id="mallaEditElective" ${course.es_electivo ? 'checked' : ''}>
+            <label for="mallaEditElective" style="margin:0">Es electivo</label>
+          </div>
+          <div class="wide" style="text-align:right;padding-top:8px">
+            <button type="submit" class="mini-button primary">Guardar cambios</button>
+          </div>
+        </form>
+      `;
+
+      openModal('Editar curso', escapeHtml(course.nombre), body);
+
+      document.getElementById('mallaEditCourseForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const updates = {
+          codigo_curso: form.codigo_curso.value.trim(),
+          nombre: form.nombre.value.trim(),
+          id_ciclo: Number(form.id_ciclo.value),
+          id_area: Number(form.id_area.value),
+          creditos: Number(form.creditos.value),
+          modalidad: form.modalidad.value,
+          es_electivo: form.es_electivo.checked
+        };
+
+        const { error } = await state.client.from(TABLES.courses).update(updates).eq('id_curso', courseId);
+        if (error) { alert('Error al editar curso: ' + error.message); return; }
+
+        closeModal();
+        await refreshData();
+        showConnectionMessage('Curso actualizado.');
+        setTimeout(hideConnectionMessage, 2400);
+      });
+    }
+
+    async function mallaDeleteCourse(courseId) {
+      if (!confirm('¿Eliminar este curso de la malla?')) return;
+      const { error } = await state.client.from(TABLES.courses).delete().eq('id_curso', courseId);
+      if (error) { alert('Error al eliminar: ' + error.message); return; }
+      await refreshData();
+      showConnectionMessage('Curso eliminado de la malla.');
+      setTimeout(hideConnectionMessage, 2400);
+    }
+
+    /* ================================================================
+    /* --- Exportar malla a PDF --- */
+
+    async function mallaExportPdf() {
+      const btn = document.getElementById('mallaExportPdf');
+      btn.disabled = true;
+      btn.textContent = '⏳ Generando...';
+
+      try {
+        const proc = state.processes.find((p) => p.id === state.mallaProcessId);
+        const career = proc?.newPlan?.nombre_carrera || proc?.evaluatedPlan?.nombre_carrera || 'Sin carrera';
+        const planYear = proc?.newPlan?.anio_version || proc?.evaluatedPlan?.anio_version || '';
+
+        // Crear contenedor temporal para el PDF
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;width:1400px;background:#fff;padding:40px;font-family:"Plus Jakarta Sans",sans-serif;';
+        document.body.appendChild(wrapper);
+
+        // Header con logo
+        const header = document.createElement('div');
+        header.style.cssText = 'display:flex;align-items:center;gap:20px;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #8B1A1A;';
+        header.innerHTML = `
+          <img src="./logousmp.png" style="height:70px;width:auto;" crossorigin="anonymous">
+          <div>
+            <div style="font-size:22px;font-weight:800;color:#1a1a2e;">Malla Curricular</div>
+            <div style="font-size:15px;color:#555;font-weight:600;">${escapeHtml(career)} — Plan ${escapeHtml(planYear)}</div>
+            <div style="font-size:12px;color:#888;margin-top:2px;">Universidad de San Martín de Porres — Facultad de Ingeniería y Arquitectura</div>
+          </div>
+        `;
+        wrapper.appendChild(header);
+
+        // Clonar la grilla y la leyenda
+        const gridClone = document.getElementById('mallaContainer').cloneNode(true);
+        gridClone.style.position = 'relative';
+        gridClone.style.overflow = 'visible';
+        // Remover botones de eliminar/editar del clon
+        gridClone.querySelectorAll('.malla-course-delete, .malla-course-edit').forEach((el) => el.remove());
+        wrapper.appendChild(gridClone);
+
+        const legendClone = document.getElementById('mallaLegend').cloneNode(true);
+        legendClone.style.marginTop = '20px';
+        // Reemplazar inputs color por swatches en el clon
+        legendClone.querySelectorAll('.malla-legend-picker').forEach((input) => {
+          const swatch = document.createElement('span');
+          swatch.className = 'malla-legend-swatch';
+          swatch.style.cssText = `display:inline-block;width:16px;height:16px;border-radius:3px;background:${input.value};border:1px solid rgba(0,0,0,0.12);flex-shrink:0;`;
+          input.replaceWith(swatch);
+        });
+        // Quitar interactividad de los nombres
+        legendClone.querySelectorAll('.malla-legend-name').forEach((el) => {
+          const span = document.createElement('span');
+          span.textContent = el.textContent;
+          el.replaceWith(span);
+        });
+        wrapper.appendChild(legendClone);
+
+        // Stats
+        const stats = document.createElement('div');
+        stats.style.cssText = 'margin-top:12px;font-size:11px;color:#888;text-align:right;';
+        stats.textContent = `Generado el ${new Date().toLocaleDateString('es-PE', { day:'2-digit', month:'long', year:'numeric' })}`;
+        wrapper.appendChild(stats);
+
+        // Renderizar a canvas
+        const canvas = await html2canvas(wrapper, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff'
+        });
+
+        document.body.removeChild(wrapper);
+
+        // Generar PDF landscape
+        const { jsPDF } = window.jspdf;
+        const imgData = canvas.toDataURL('image/png');
+        const pdfWidth = canvas.width;
+        const pdfHeight = canvas.height;
+        const ratio = pdfWidth / pdfHeight;
+
+        const pdf = new jsPDF({
+          orientation: ratio > 1 ? 'landscape' : 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const margin = 8;
+        const usableW = pageW - margin * 2;
+        const usableH = pageH - margin * 2;
+
+        let finalW = usableW;
+        let finalH = usableW / ratio;
+        if (finalH > usableH) {
+          finalH = usableH;
+          finalW = usableH * ratio;
+        }
+
+        pdf.addImage(imgData, 'PNG', margin, margin, finalW, finalH);
+        pdf.save(`Malla_${career.replace(/\s+/g, '_')}_${planYear}.pdf`);
+
+        showConnectionMessage('PDF exportado correctamente.');
+        setTimeout(hideConnectionMessage, 3000);
+      } catch (err) {
+        console.error('Error exportando PDF:', err);
+        alert('Error al exportar PDF: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '📄 Exportar PDF';
+      }
+    }
+
+    /* ================================================================
+       FIN MALLA CURRICULAR
+       ================================================================ */
 
     function displayText(value) {
       const text = String(value ?? '');
