@@ -4,6 +4,7 @@ const SURVEY_CONFIG = {
 };
 
 const SURVEY_TABLES = {
+  careers: 'carrera',
   plans: 'plan_estudio',
   populations: 'poblacion_objetivo',
   questions: 'pregunta_encuesta',
@@ -14,6 +15,7 @@ const SURVEY_TABLES = {
 
 const surveyState = {
   client: null,
+  careers: [],
   plans: [],
   populations: [],
   questions: [],
@@ -58,19 +60,22 @@ function showLoadingState() {
 }
 
 async function loadSurveyData() {
-  const [plans, populations, questions, questionLinks] = await Promise.all([
-    surveyState.client.from(SURVEY_TABLES.plans).select('*').order('nombre_carrera', { ascending: true }),
+  const [careers, plans, populations, questions, questionLinks] = await Promise.all([
+    surveyState.client.from(SURVEY_TABLES.careers).select('*').order('nombre_carrera', { ascending: true }),
+    surveyState.client.from(SURVEY_TABLES.plans).select('*').order('anio_version', { ascending: false }),
     surveyState.client.from(SURVEY_TABLES.populations).select('*').order('id_poblacion', { ascending: true }),
     surveyState.client.from(SURVEY_TABLES.questions).select('*').order('id_pregunta', { ascending: true }),
     surveyState.client.from(SURVEY_TABLES.questionLinks).select('*')
   ]);
 
+  if (careers.error) throw careers.error;
   if (plans.error) throw plans.error;
   if (populations.error) throw populations.error;
   if (questions.error) throw questions.error;
   if (questionLinks.error) throw questionLinks.error;
 
-  surveyState.plans = plans.data || [];
+  surveyState.careers = careers.data || [];
+  surveyState.plans = enrichPlansWithCareer(plans.data || []);
   surveyState.populations = populations.data || [];
   surveyState.questions = questions.data || [];
   surveyState.questionLinks = questionLinks.data || [];
@@ -199,7 +204,7 @@ function renderConfirmedSummary(plan, population, email) {
   summary.innerHTML = `
     <strong>Datos confirmados</strong>
     <span>${escapeHtml(email)}</span>
-    <span>${escapeHtml(plan.nombre_carrera)} · ${escapeHtml(population?.tipo_poblacion || '-')}</span>
+    <span>${escapeHtml(planCareerName(plan))} · ${escapeHtml(population?.tipo_poblacion || '-')}</span>
   `;
   summary.classList.remove('is-hidden');
 }
@@ -301,8 +306,6 @@ async function submitSurvey(event) {
 
   const payload = surveyState.activeQuestions.map((question) => ({
     id_pregunta: question.id_pregunta,
-    id_plan: idPlan,
-    id_poblacion: idPopulation,
     valor_respuesta: Number(form.get(`score_${question.id_pregunta}`)),
     comentario: String(form.get(`comment_${question.id_pregunta}`) || '').trim() || null,
     fecha_respuesta: new Date().toISOString()
@@ -404,8 +407,7 @@ async function createSurveyParticipant(email, idPlan, idPopulation) {
     .insert({
       correo_institucional: email,
       id_plan: idPlan,
-      id_poblacion: idPopulation,
-      fecha_registro: new Date().toISOString()
+      id_poblacion: idPopulation
     })
     .select('id_participante')
     .single();
@@ -492,7 +494,7 @@ function showSurveyMessage(message, isError) {
 
 function planLabel(plan) {
   if (!plan) return '-';
-  return plan.nombre_carrera;
+  return planCareerName(plan);
 }
 
 function selectedPlan() {
@@ -515,14 +517,14 @@ function publicCareerOptions(plans) {
 
   const bestByCareer = new Map();
   plans.forEach((plan) => {
-    const career = normalizeText(plan.nombre_carrera);
+    const career = normalizeText(planCareerName(plan));
     const current = bestByCareer.get(career);
     if (!current || planRank(plan, priority) > planRank(current, priority)) {
       bestByCareer.set(career, plan);
     }
   });
 
-  return [...bestByCareer.values()].sort((a, b) => a.nombre_carrera.localeCompare(b.nombre_carrera, 'es'));
+  return [...bestByCareer.values()].sort((a, b) => planCareerName(a).localeCompare(planCareerName(b), 'es'));
 }
 
 function planRank(plan, priority) {
@@ -543,6 +545,21 @@ function normalizeText(value) {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
+}
+
+function enrichPlansWithCareer(plans) {
+  const careers = new Map(surveyState.careers.map((career) => [Number(career.id_carrera), career]));
+  return plans.map((plan) => ({
+    ...plan,
+    nombre_carrera: careers.get(Number(plan.id_carrera))?.nombre_carrera || plan.nombre_carrera || ''
+  }));
+}
+
+function planCareerName(plan) {
+  if (!plan) return 'Sin carrera';
+  if (plan.nombre_carrera) return String(plan.nombre_carrera).trim();
+  const career = surveyState.careers.find((item) => Number(item.id_carrera) === Number(plan.id_carrera));
+  return String(career?.nombre_carrera || 'Sin carrera').trim();
 }
 
 function escapeHtml(value) {

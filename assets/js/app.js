@@ -40,7 +40,13 @@
         population: '',
         plan: ''
       },
-      activeSupport: 'courses',
+      feedbackFilters: {
+        process: '',
+        career: '',
+        population: '',
+        plan: ''
+      },
+      activeSupport: 'plans',
       supportFilters: {},
       supportSelectFilters: {},
       supportPages: {},
@@ -81,7 +87,7 @@
         label: 'evidencia',
         pk: 'id_evidencia',
         fields: [
-          { name: 'id_historial', label: 'Fase histórica', type: 'select', source: 'history', value: 'id_historial', text: historyOptionLabel },
+          { name: 'id_historial', label: 'Fase del expediente', type: 'select', source: 'history', value: 'id_historial', text: historyOptionLabel, filter: (item, record) => !record?.id_proceso || Number(item.id_proceso) === Number(record.id_proceso) },
           { name: 'tipo_documento', label: 'Tipo documento', type: 'text' },
           { name: 'ruta_archivo_pdf', label: 'Ruta archivo PDF', type: 'text' },
           { name: 'fecha_carga', label: 'Fecha carga', type: 'datetime-local' }
@@ -93,7 +99,7 @@
         pk: 'id_plan',
         fields: [
           { name: 'anio_version', label: 'Año versión', type: 'number' },
-          { name: 'nombre_carrera', label: 'Carrera', type: 'text' },
+          { name: 'id_carrera', label: 'Carrera', type: 'select', source: 'careers', value: 'id_carrera', text: (item) => item.nombre_carrera },
           { name: 'total_creditos_requeridos', label: 'Créditos requeridos', type: 'number' },
           { name: 'estado', label: 'Estado', type: 'select-static', options: ['Historico', 'Vigente', 'En Revision', 'Propuesta'] }
         ]
@@ -118,9 +124,7 @@
         pk: 'id_respuesta',
         fields: [
           { name: 'id_pregunta', label: 'Pregunta', type: 'select', source: 'questions', value: 'id_pregunta', text: (item) => `${item.categoria} - ${item.texto_pregunta}` },
-          { name: 'id_plan', label: 'Plan', type: 'select', source: 'plans', value: 'id_plan', text: planLabel },
-          { name: 'id_poblacion', label: 'Población', type: 'select', source: 'populations', value: 'id_poblacion', text: (item) => item.tipo_poblacion },
-          { name: 'id_participante', label: 'Participante', type: 'select', source: 'participants', value: 'id_participante', text: participantLabel, required: false },
+          { name: 'id_participante', label: 'Participante', type: 'select', source: 'participants', value: 'id_participante', text: participantLabel },
           { name: 'valor_respuesta', label: 'Valor respuesta', type: 'number', min: 1, max: 5 },
           { name: 'comentario', label: 'Comentario', type: 'textarea' },
           { name: 'fecha_respuesta', label: 'Fecha respuesta', type: 'datetime-local' }
@@ -171,6 +175,7 @@
     async function refreshData() {
       const previousSelectedId = state.selectedId;
       state.data = await loadReadOnlyData(state.client);
+      hydratePlanCareers();
       hydrateAnswerParticipants();
       state.processes = buildProcesses(state.data);
       state.filtered = state.processes;
@@ -198,10 +203,20 @@
         const participant = participants.get(answer.id_participante);
         return {
           ...answer,
+          id_plan: answer.id_plan ?? participant?.id_plan ?? null,
+          id_poblacion: answer.id_poblacion ?? participant?.id_poblacion ?? null,
           correo_participante: participant?.correo_institucional || answer.correo_institucional || '',
           participante: participant || null
         };
       });
+    }
+
+    function hydratePlanCareers() {
+      const careers = mapBy(state.data.careers || [], 'id_carrera');
+      state.data.plans = (state.data.plans || []).map((plan) => ({
+        ...plan,
+        nombre_carrera: careers.get(plan.id_carrera)?.nombre_carrera || plan.nombre_carrera || ''
+      }));
     }
 
     function bindEvents() {
@@ -220,9 +235,23 @@
       document.getElementById('dashboardPopulation').addEventListener('change', updateDashboardFilter);
       document.getElementById('dashboardPlan').addEventListener('change', updateDashboardFilter);
       document.getElementById('dashboardClearFilters').addEventListener('click', clearDashboardFilters);
+      document.getElementById('feedbackProcess').addEventListener('change', updateFeedbackFilter);
+      document.getElementById('feedbackCareer').addEventListener('change', updateFeedbackFilter);
+      document.getElementById('feedbackPopulation').addEventListener('change', updateFeedbackFilter);
+      document.getElementById('feedbackPlan').addEventListener('change', updateFeedbackFilter);
+      document.getElementById('feedbackClearFilters').addEventListener('click', clearFeedbackFilters);
       document.getElementById('loginButton').addEventListener('click', openLoginModal);
       document.getElementById('logoutButton').addEventListener('click', signOut);
       document.getElementById('modalClose').addEventListener('click', closeModal);
+      document.querySelectorAll('[data-dashboard-jump]').forEach((item) => {
+        item.addEventListener('click', handleDashboardJump);
+        item.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            handleDashboardJump(event);
+          }
+        });
+      });
     }
 
     function buildProcesses(data) {
@@ -296,6 +325,7 @@
       fillSelect('filterCareer', 'Todas', unique(state.processes.map((item) => item.career)));
       fillSelect('filterStatus', 'Todos', unique(state.processes.map((item) => item.status)));
       populateDashboardFilters();
+      populateFeedbackFilters();
     }
 
     function fillSelect(id, label, values) {
@@ -305,8 +335,6 @@
 
     function populateDashboardFilters() {
       const career = state.dashboardFilters.career;
-      const population = state.dashboardFilters.population;
-      const plan = state.dashboardFilters.plan;
       const currentPlanIds = dashboardCurrentPlanIds();
       const dashboardPlans = state.data.plans.filter((item) => currentPlanIds.has(Number(item.id_plan)));
 
@@ -319,10 +347,44 @@
       `).join('')}`;
 
       document.getElementById('dashboardCareer').value = [...document.getElementById('dashboardCareer').options].some((option) => option.value === career) ? career : '';
-      document.getElementById('dashboardPopulation').value = population;
-      document.getElementById('dashboardPlan').value = currentPlanIds.has(Number(plan)) ? plan : '';
+      document.getElementById('dashboardPopulation').value = '';
+      document.getElementById('dashboardPlan').value = '';
       state.dashboardFilters.career = document.getElementById('dashboardCareer').value;
-      state.dashboardFilters.plan = document.getElementById('dashboardPlan').value;
+      state.dashboardFilters.population = '';
+      state.dashboardFilters.plan = '';
+    }
+
+    function populateFeedbackFilters() {
+      ensureDefaultFeedbackProcess();
+
+      const filters = state.feedbackFilters;
+      const process = feedbackSelectedProcess();
+      const processPlanIds = process ? processPlanIdSet(process) : dashboardSurveyPlanIds();
+      const feedbackPlans = state.data.plans.filter((item) => processPlanIds.has(Number(item.id_plan)));
+      const fallbackPlans = feedbackPlans.length ? feedbackPlans : state.data.plans.filter((item) => dashboardCurrentPlanIds().has(Number(item.id_plan)));
+
+      const processSelect = document.getElementById('feedbackProcess');
+      processSelect.innerHTML = `<option value="">Último proceso</option>${feedbackProcessOptions().map((item) => `
+        <option value="${escapeHtml(item.id)}">${escapeHtml(feedbackProcessLabel(item))}</option>
+      `).join('')}`;
+
+      fillSelect('feedbackCareer', 'Todas', unique(fallbackPlans.map((item) => displayText(item.nombre_carrera))));
+      fillSelect('feedbackPopulation', 'Todos', unique(state.data.populations.map((item) => displayText(item.tipo_poblacion))));
+
+      const feedbackPlanSelect = document.getElementById('feedbackPlan');
+      feedbackPlanSelect.innerHTML = `<option value="">Todos</option>${fallbackPlans.map((item) => `
+        <option value="${escapeHtml(item.id_plan)}">${escapeHtml(planLabel(item))}</option>
+      `).join('')}`;
+
+      processSelect.value = state.processes.some((item) => String(item.id) === String(filters.process)) ? filters.process : '';
+      document.getElementById('feedbackCareer').value = [...document.getElementById('feedbackCareer').options].some((option) => option.value === filters.career) ? filters.career : '';
+      document.getElementById('feedbackPopulation').value = filters.population;
+      document.getElementById('feedbackPlan').value = [...feedbackPlanSelect.options].some((option) => option.value === String(filters.plan)) ? filters.plan : '';
+
+      state.feedbackFilters.process = processSelect.value;
+      state.feedbackFilters.career = document.getElementById('feedbackCareer').value;
+      state.feedbackFilters.population = document.getElementById('feedbackPopulation').value;
+      state.feedbackFilters.plan = document.getElementById('feedbackPlan').value;
     }
 
     function updateDashboardFilter(event) {
@@ -332,13 +394,112 @@
         dashboardPlan: 'plan'
       };
       state.dashboardFilters[map[event.target.id]] = event.target.value;
+      populateDashboardFilters();
       renderDashboardSections();
+    }
+
+    function updateFeedbackFilter(event) {
+      const map = {
+        feedbackProcess: 'process',
+        feedbackCareer: 'career',
+        feedbackPopulation: 'population',
+        feedbackPlan: 'plan'
+      };
+      state.feedbackFilters[map[event.target.id]] = event.target.value;
+      populateFeedbackFilters();
+      renderFeedbackSections();
     }
 
     function clearDashboardFilters() {
       state.dashboardFilters = { career: '', population: '', plan: '' };
       populateDashboardFilters();
       renderDashboardSections();
+    }
+
+    function clearFeedbackFilters() {
+      state.feedbackFilters = {
+        process: '',
+        career: '',
+        population: '',
+        plan: ''
+      };
+      populateFeedbackFilters();
+      renderFeedbackSections();
+    }
+
+    function handleDashboardJump(event) {
+      const target = event.currentTarget.dataset.dashboardJump;
+      if (target === 'feedback') {
+        openFeedbackModule();
+        return;
+      }
+      if (target === 'evidence') {
+        openSupportModule('evidence');
+        return;
+      }
+      if (target === 'observed') {
+        openRecordsModule({ statusText: 'observado' });
+        return;
+      }
+      if (target === 'done') {
+        openRecordsModule({ statusText: 'finalizado' });
+        return;
+      }
+      if (target === 'attention') {
+        const first = attentionItems()[0];
+        openRecordsModule({ processId: first?.processId, statusText: first ? '' : 'observado' });
+        return;
+      }
+      openRecordsModule();
+    }
+
+    function openFeedbackModule(extraFilters = {}) {
+      state.activeModule = 'feedback';
+      state.feedbackFilters = {
+        process: extraFilters.process || state.feedbackFilters.process || '',
+        career: extraFilters.career || '',
+        population: extraFilters.population || '',
+        plan: extraFilters.plan || ''
+      };
+      renderActiveModule();
+      populateFeedbackFilters();
+      renderFeedbackSections();
+      scrollModuleTop();
+    }
+
+    function openSupportModule(tabKey) {
+      state.activeModule = 'model';
+      state.activeSupport = tabKey;
+      renderActiveModule();
+      renderSupport();
+      scrollModuleTop();
+    }
+
+    function openRecordsModule(options = {}) {
+      state.activeModule = 'records';
+      clearRecordFilterInputs();
+
+      let rows = state.processes.slice();
+      if (options.statusText) rows = rows.filter((item) => normalizeText(item.status).includes(normalizeText(options.statusText)));
+      state.filtered = rows;
+      state.selectedId = Number(options.processId) || rows[0]?.id || state.processes[0]?.id || null;
+      if (state.selectedId) state.activeDetailTab = options.detailTab || 'timeline';
+
+      renderActiveModule();
+      renderProcessList();
+      renderDetail();
+      scrollModuleTop();
+    }
+
+    function clearRecordFilterInputs() {
+      ['searchInput', 'filterPeriod', 'filterCareer', 'filterStatus'].forEach((id) => {
+        const field = document.getElementById(id);
+        if (field) field.value = '';
+      });
+    }
+
+    function scrollModuleTop() {
+      document.querySelector('.module-content')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function applyFilters() {
@@ -385,8 +546,8 @@
 
     function renderDashboardSections() {
       renderMetrics();
-      renderPriorityBoard();
-      renderDashboardCharts();
+      renderDashboardFeedbackSummary();
+      renderFeedbackSections();
       renderAuthorityInsights();
     }
 
@@ -417,21 +578,71 @@
       document.getElementById('metricActivePeriod').textContent = activePeriod;
       document.getElementById('metricEvidence').textContent = processes.reduce((total, item) => total + item.evidence.length, 0);
       document.getElementById('metricFeedback').textContent = feedback ? feedback.toFixed(1) : '0.0';
+      document.getElementById('metricFeedbackCard')?.classList.toggle('is-hidden', !answers.length);
     }
 
-    function renderPriorityBoard() {
-      const container = document.getElementById('priorityBoard');
+    function renderDashboardFeedbackSummary() {
+      const section = document.getElementById('dashboardFeedbackSummary');
+      const container = document.getElementById('dashboardFeedbackContent');
+      if (!section || !container) return;
+
+      if (container.parentElement !== section) section.appendChild(container);
+
+      const answers = dashboardAnswers();
+      section.classList.toggle('is-hidden', !answers.length);
+      if (!answers.length) {
+        container.innerHTML = '';
+        return;
+      }
+
+      const critical = criticalQuestionItems();
+      const lowSample = lowSampleItems();
+      const alerts = feedbackAlertItems();
+      const avg = average(answers.map((item) => Number(item.valor_respuesta)));
+      const participants = participantCount(answers);
+
+      container.innerHTML = `
+        <article class="feedback-quick-card">
+          <span class="quick-label"><span class="ui-icon" aria-hidden="true">👥</span>Participantes</span>
+          <strong>${participants}</strong>
+          <p>${answers.length} valoraciones de preguntas</p>
+        </article>
+        <article class="feedback-quick-card drilldown-card" role="button" tabindex="0" data-dashboard-jump="feedback">
+          <span class="quick-label"><span class="ui-icon" aria-hidden="true">📊</span>Promedio</span>
+          <strong>${avg.toFixed(1)}</strong>
+          <p>Escala de 1 a 5</p>
+        </article>
+        <article class="feedback-quick-card drilldown-card" role="button" tabindex="0" data-dashboard-jump="feedback">
+          <span class="quick-label"><span class="ui-icon" aria-hidden="true">⚠️</span>Alertas</span>
+          <strong>${alerts.length}</strong>
+          <p>Promedios bajos detectados</p>
+        </article>
+        <article class="feedback-quick-card drilldown-card" role="button" tabindex="0" data-dashboard-jump="feedback">
+          <span class="quick-label"><span class="ui-icon" aria-hidden="true">🚩</span>Preguntas críticas</span>
+          <strong>${critical.length}</strong>
+          <p>${lowSample.length ? `${lowSample.length} grupo(s) con muestra baja` : 'Sin muestra baja detectada'}</p>
+        </article>
+      `;
+      bindDrilldownCards(container);
+    }
+
+    function renderPriorityBoard(targetId = 'feedbackPriorityBoard', options = {}) {
+      const container = document.getElementById(targetId);
       if (!container) return;
+      const sourceAnswers = options.answers || dashboardAnswers();
+      const sourceProcesses = options.processes || dashboardProcesses();
 
       const urgent = [
-        ...attentionItems().slice(0, 2).map((item) => ({
+        ...attentionItems(sourceProcesses).slice(0, 2).map((item) => ({
+          ...item,
           label: 'Proceso observado',
           title: item.title,
           detail: item.detail,
           meta: item.meta,
           className: 'priority-danger'
         })),
-        ...criticalQuestionItems().slice(0, 2).map((item) => ({
+        ...criticalQuestionItems(sourceAnswers).slice(0, 2).map((item) => ({
+          ...item,
           label: 'Pregunta crítica',
           title: item.label,
           detail: `${item.avg.toFixed(1)} de 5 - ${item.detail}`,
@@ -439,14 +650,14 @@
           className: 'priority-danger'
         }))
       ].slice(0, 3);
-      const lowSample = lowSampleItems().slice(0, 3);
-      const missingEvidence = missingEvidenceItems().slice(0, 3);
+      const lowSample = lowSampleItems(sourceAnswers).slice(0, 3);
+      const missingEvidence = missingEvidenceItems(sourceProcesses).slice(0, 3);
 
       container.innerHTML = `
         <article class="priority-card priority-card-main">
           <div class="priority-card-header">
             <div>
-              <h2 class="panel-title">Prioridades de atención</h2>
+              <h2 class="panel-title"><span class="ui-icon" aria-hidden="true">⚠️</span>Prioridades de atención</h2>
               <span class="panel-note">Lo que conviene revisar primero</span>
             </div>
             <strong>${urgent.length}</strong>
@@ -458,7 +669,7 @@
         <article class="priority-card">
           <div class="priority-card-header">
             <div>
-              <h2 class="panel-title">Muestra baja</h2>
+              <h2 class="panel-title"><span class="ui-icon" aria-hidden="true">👥</span>Muestra baja</h2>
               <span class="panel-note">Promedios con pocas respuestas</span>
             </div>
             <strong>${lowSample.length}</strong>
@@ -470,7 +681,7 @@
         <article class="priority-card">
           <div class="priority-card-header">
             <div>
-              <h2 class="panel-title">Sin evidencia</h2>
+              <h2 class="panel-title"><span class="ui-icon" aria-hidden="true">📄</span>Sin evidencia</h2>
               <span class="panel-note">Expedientes que necesitan respaldo</span>
             </div>
             <strong>${missingEvidence.length}</strong>
@@ -480,12 +691,18 @@
           </div>
         </article>
       `;
+      container.querySelectorAll('.priority-card').forEach((card) => {
+        if (card.querySelector('.empty')) card.remove();
+      });
+      container.classList.toggle('is-hidden', !container.querySelector('.priority-card'));
+      bindDrilldownCards(container);
     }
 
     function priorityItemTemplate(item) {
+      const actionAttrs = priorityActionAttributes(item);
       return `
-        <div class="priority-item ${item.className || ''}">
-          <span>${escapeHtml(item.label)}</span>
+        <div class="priority-item ${item.className || ''}${actionAttrs ? ' drilldown-card' : ''}" ${actionAttrs}>
+          <span><span class="ui-icon" aria-hidden="true">${priorityItemIcon(item)}</span>${escapeHtml(item.label)}</span>
           <strong>${escapeHtml(item.title)}</strong>
           <p>${escapeHtml(item.detail)}</p>
           <small>${escapeHtml(item.meta)}</small>
@@ -493,25 +710,89 @@
       `;
     }
 
-    function renderDashboardCharts() {
-      renderCareerGroupChart();
-      renderFeedbackStatusChart();
-      renderCriticalQuestionChart();
+    function priorityActionAttributes(item) {
+      if (item.action === 'process' && item.processId) {
+        return `role="button" tabindex="0" data-priority-action="process" data-process-id="${escapeHtml(item.processId)}"`;
+      }
+      if (item.action === 'feedback-detail' && item.idPlan && item.idPopulation) {
+        return `role="button" tabindex="0" data-feedback-detail data-id-plan="${escapeHtml(item.idPlan)}" data-id-population="${escapeHtml(item.idPopulation)}" ${item.idQuestion ? `data-id-question="${escapeHtml(item.idQuestion)}"` : ''}`;
+      }
+      return '';
     }
 
-    function renderCareerGroupChart() {
-      const container = document.getElementById('chartCareerGroup');
+    function priorityItemIcon(item) {
+      const text = normalizeText(`${item.label || ''} ${item.className || ''}`);
+      if (text.includes('evidencia') || text.includes('respaldo')) return '📄';
+      if (text.includes('muestra')) return '👥';
+      if (text.includes('pregunta')) return '🚩';
+      if (text.includes('observado') || text.includes('danger')) return '⚠️';
+      return '📌';
+    }
+
+    function renderFeedbackSections() {
+      const hasAnswers = feedbackAnswers().length > 0;
+      document.getElementById('feedbackEmptyState')?.classList.toggle('is-hidden', hasAnswers);
+      document.getElementById('feedbackAnalysis')?.classList.toggle('is-hidden', !hasAnswers);
+      if (!hasAnswers) return;
+
+      renderPriorityBoard('feedbackPriorityBoard', {
+        answers: feedbackAnswers(),
+        processes: feedbackProcesses()
+      });
+      renderCareerGroupChart('feedbackChartCareerGroup');
+      renderFeedbackStatusChart('feedbackChartStatus');
+      renderCriticalQuestionChart('feedbackChartCriticalQuestions');
+      bindDrilldownCards(document.getElementById('feedbackAnalysis'));
+    }
+
+    function bindDrilldownCards(root = document) {
+      root?.querySelectorAll('[data-dashboard-jump], [data-priority-action], [data-feedback-detail]').forEach((element) => {
+        if (element.dataset.drilldownBound === 'true') return;
+        element.dataset.drilldownBound = 'true';
+        element.addEventListener('click', handleDrilldownAction);
+        element.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            handleDrilldownAction(event);
+          }
+        });
+      });
+    }
+
+    function handleDrilldownAction(event) {
+      const target = event.currentTarget;
+      if (target.dataset.dashboardJump) {
+        handleDashboardJump(event);
+        return;
+      }
+      if (target.dataset.priorityAction === 'process') {
+        openRecordsModule({ processId: Number(target.dataset.processId) });
+        return;
+      }
+      if (target.hasAttribute('data-feedback-detail')) {
+        openFeedbackDetailModal({
+          idPlan: Number(target.dataset.idPlan),
+          idPopulation: Number(target.dataset.idPopulation),
+          idQuestion: target.dataset.idQuestion ? Number(target.dataset.idQuestion) : null
+        });
+      }
+    }
+
+    function renderCareerGroupChart(targetId = 'feedbackChartCareerGroup') {
+      const container = document.getElementById(targetId);
       if (!container) return;
       const plans = mapBy(state.data.plans, 'id_plan');
       const populations = mapBy(state.data.populations, 'id_poblacion');
       const questions = mapBy(state.data.questions, 'id_pregunta');
-      const rows = Array.from(groupBy(dashboardAnswers(), (answer) => [
-        dashboardPlanTitle(plans.get(answer.id_plan)),
-        dashboardPlanMeta(plans.get(answer.id_plan)),
-        populations.get(answer.id_poblacion)?.tipo_poblacion || 'Sin población'
-      ].join('||')).entries())
+      const sourceAnswers = targetId === 'feedbackChartCareerGroup' ? feedbackAnswers() : dashboardAnswers();
+      const rows = Array.from(groupBy(sourceAnswers, (answer) => [
+        answer.id_plan,
+        answer.id_poblacion
+      ].join('|')).entries())
         .map(([key, answers]) => {
-          const [career, planMeta, population] = key.split('||');
+          const [idPlan, idPopulation] = key.split('|').map(Number);
+          const plan = plans.get(idPlan);
+          const populationRecord = populations.get(idPopulation);
           const avg = average(answers.map((answer) => Number(answer.valor_respuesta)));
           const criticalAnswers = answers.filter((answer) => Number(answer.valor_respuesta) < 3);
           const criticalQuestionCount = new Set(criticalAnswers.map((answer) => answer.id_pregunta)).size;
@@ -523,11 +804,14 @@
             .sort((a, b) => a.avg - b.avg)[0];
 
           return {
-            career,
-            planMeta: displayText(planMeta),
-            population: displayText(population),
+            idPlan,
+            idPopulation,
+            career: dashboardPlanTitle(plan),
+            planMeta: dashboardPlanMeta(plan),
+            population: displayText(populationRecord?.tipo_poblacion || 'Sin población'),
             avg,
             count: answers.length,
+            participants: participantCount(answers),
             criticalQuestionCount,
             topCriticalLabel: topCritical?.question?.categoria || '',
             status: feedbackStatus(avg)
@@ -541,15 +825,16 @@
         : emptyTemplate('Aún no hay respuestas suficientes para graficar.');
     }
 
-    function renderFeedbackStatusChart() {
-      const container = document.getElementById('chartFeedbackStatus');
+    function renderFeedbackStatusChart(targetId = 'feedbackChartStatus') {
+      const container = document.getElementById(targetId);
       if (!container) return;
       const groups = [
         { key: 'critical', label: 'Crítico', className: 'feedback-status-critical', count: 0 },
         { key: 'warning', label: 'Revisar', className: 'feedback-status-warning', count: 0 },
         { key: 'ok', label: 'Adecuado', className: 'feedback-status-ok', count: 0 }
       ];
-      dashboardAnswers().forEach((answer) => {
+      const sourceAnswers = targetId === 'feedbackChartStatus' ? feedbackAnswers() : dashboardAnswers();
+      sourceAnswers.forEach((answer) => {
         const value = Number(answer.valor_respuesta);
         if (value < 3) groups[0].count += 1;
         else if (value < 3.8) groups[1].count += 1;
@@ -575,18 +860,19 @@
         : emptyTemplate('Aún no hay respuestas para calcular el semáforo.');
     }
 
-    function renderCriticalQuestionChart() {
-      const container = document.getElementById('chartCriticalQuestions');
+    function renderCriticalQuestionChart(targetId = 'feedbackChartCriticalQuestions') {
+      const container = document.getElementById(targetId);
       if (!container) return;
-      const rows = criticalQuestionItems().slice(0, 5);
+      const sourceAnswers = targetId === 'feedbackChartCriticalQuestions' ? feedbackAnswers() : dashboardAnswers();
+      const rows = criticalQuestionItems(sourceAnswers).slice(0, 5);
 
       container.innerHTML = rows.length
         ? rows.map((item) => `
-          <article class="critical-item">
+          <article class="critical-item drilldown-card" role="button" tabindex="0" data-feedback-detail data-id-plan="${escapeHtml(item.idPlan)}" data-id-population="${escapeHtml(item.idPopulation)}" data-id-question="${escapeHtml(item.idQuestion)}">
             <div>
               <strong>${escapeHtml(item.label)}</strong>
               <span>${escapeHtml(item.detail)}</span>
-              <small>${escapeHtml(item.meta)} - ${item.count} respuesta(s)</small>
+              <small>${escapeHtml(item.meta)} - ${item.count} valoración(es)</small>
             </div>
             <b class="${item.status.className}">${item.avg.toFixed(1)}</b>
           </article>
@@ -601,7 +887,7 @@
           <div class="bar-row-head">
             <div>
               <strong>${escapeHtml(title)}</strong>
-              <span>${escapeHtml(subtitle)} - ${count} respuesta(s) ${sample}</span>
+              <span>${escapeHtml(subtitle)} - ${count} valoración(es) ${sample}</span>
             </div>
             <b class="${status.className}">${value.toFixed(1)}</b>
           </div>
@@ -613,7 +899,7 @@
     }
 
     function feedbackGroupRowTemplate(item) {
-      const sample = item.count < 3 ? '<span class="sample-note">Muestra baja</span>' : '';
+      const sample = item.participants < 3 ? '<span class="sample-note">Muestra baja</span>' : '';
       const critical = item.criticalQuestionCount
         ? `<span class="sample-note sample-note-danger">${item.criticalQuestionCount} pregunta(s) crítica(s)</span>`
         : '<span class="sample-note sample-note-ok">Sin críticas</span>';
@@ -622,11 +908,11 @@
         : '<small>Sin preguntas críticas detectadas.</small>';
 
       return `
-        <article class="bar-row feedback-group-row">
+        <article class="bar-row feedback-group-row drilldown-card" role="button" tabindex="0" data-feedback-detail data-id-plan="${escapeHtml(item.idPlan)}" data-id-population="${escapeHtml(item.idPopulation)}">
           <div class="bar-row-head">
             <div>
               <strong>${escapeHtml(item.career)}</strong>
-              <span>${escapeHtml(item.planMeta)} - ${escapeHtml(item.population)} - ${item.count} respuesta(s) ${sample} ${critical}</span>
+              <span>${escapeHtml(item.planMeta)} - ${escapeHtml(item.population)} - ${item.participants} participante(s) (${item.count} valoraciones) ${sample} ${critical}</span>
               ${topCritical}
             </div>
             <b class="${item.status.className}">${item.avg.toFixed(1)}</b>
@@ -636,6 +922,178 @@
           </div>
         </article>
       `;
+    }
+
+    function legacyOpenFeedbackDetailModal({ idPlan, idPopulation, idQuestion = null }) {
+      const questions = mapBy(state.data.questions, 'id_pregunta');
+      const populations = mapBy(state.data.populations, 'id_poblacion');
+      const plan = state.data.plans.find((item) => Number(item.id_plan) === Number(idPlan));
+      const answers = state.data.answers
+        .filter((answer) => Number(answer.id_plan) === Number(idPlan))
+        .filter((answer) => Number(answer.id_poblacion) === Number(idPopulation))
+        .filter((answer) => !idQuestion || Number(answer.id_pregunta) === Number(idQuestion))
+        .slice()
+        .sort((a, b) => Number(a.id_pregunta) - Number(b.id_pregunta) || new Date(b.fecha_respuesta) - new Date(a.fecha_respuesta));
+
+      const avg = average(answers.map((answer) => Number(answer.valor_respuesta)));
+      const title = idQuestion
+        ? `Detalle de pregunta: ${displayText(questions.get(idQuestion)?.categoria || `Pregunta ${idQuestion}`)}`
+        : `Detalle de feedback: ${dashboardPlanTitle(plan)}`;
+      const subtitle = `${planLabel(plan)} - ${displayText(populations.get(idPopulation)?.tipo_poblacion || 'Grupo de interés')} - ${answers.length} valoración(es) - promedio ${avg ? avg.toFixed(1) : '0.0'}`;
+      const rows = answers.map((answer) => {
+        const question = questions.get(answer.id_pregunta);
+        return `
+          <article class="answer-detail-row">
+            <div>
+              <strong>${escapeHtml(displayText(question?.categoria || `Pregunta ${answer.id_pregunta}`))}</strong>
+              <p>${escapeHtml(displayText(question?.texto_pregunta || 'Sin texto registrado.'))}</p>
+              ${answer.comentario ? `<em>${escapeHtml(displayText(answer.comentario))}</em>` : ''}
+              <small>${escapeHtml(answer.correo_participante || 'Participante registrado')} - ${formatDate(answer.fecha_respuesta)}</small>
+            </div>
+            <b class="${feedbackStatus(Number(answer.valor_respuesta)).className}">${escapeHtml(answer.valor_respuesta)}</b>
+          </article>
+        `;
+      }).join('');
+
+      openModal(title, subtitle, `
+        <section class="answer-detail-list">
+          ${rows || emptyTemplate('No hay respuestas para este detalle.')}
+        </section>
+      `);
+    }
+
+    function openFeedbackDetailModal({ idPlan, idPopulation, idQuestion = null }) {
+      const questions = mapBy(state.data.questions, 'id_pregunta');
+      const populations = mapBy(state.data.populations, 'id_poblacion');
+      const plan = state.data.plans.find((item) => Number(item.id_plan) === Number(idPlan));
+      const answers = state.data.answers
+        .filter((answer) => Number(answer.id_plan) === Number(idPlan))
+        .filter((answer) => Number(answer.id_poblacion) === Number(idPopulation))
+        .filter((answer) => !idQuestion || Number(answer.id_pregunta) === Number(idQuestion))
+        .slice()
+        .sort((a, b) => Number(a.id_pregunta) - Number(b.id_pregunta) || new Date(b.fecha_respuesta) - new Date(a.fecha_respuesta));
+
+      const avg = average(answers.map((answer) => Number(answer.valor_respuesta)));
+      const selectedQuestion = idQuestion ? questions.get(idQuestion) : null;
+      const participants = participantCount(answers);
+      const commentsCount = answers.filter((answer) => String(answer.comentario || '').trim()).length;
+      const distribution = [1, 2, 3, 4, 5].map((score) => ({
+        score,
+        count: answers.filter((answer) => Number(answer.valor_respuesta) === score).length
+      }));
+      const title = idQuestion
+        ? `Detalle de pregunta: ${displayText(selectedQuestion?.categoria || `Pregunta ${idQuestion}`)}`
+        : `Detalle de feedback: ${dashboardPlanTitle(plan)}`;
+      const subtitle = `${planLabel(plan)} - ${displayText(populations.get(idPopulation)?.tipo_poblacion || 'Grupo de interés')} - ${participants} participante(s) - ${answers.length} valoración(es) - promedio ${avg ? avg.toFixed(1) : '0.0'}`;
+      const focusBlock = selectedQuestion
+        ? `
+          <section class="answer-focus">
+            <strong>${escapeHtml(displayText(selectedQuestion.categoria || `Pregunta ${idQuestion}`))}</strong>
+            <p>${escapeHtml(displayText(selectedQuestion.texto_pregunta || 'Sin texto registrado.'))}</p>
+          </section>
+        `
+        : '';
+
+      openModal(title, subtitle, `
+        ${focusBlock}
+        <section class="answer-detail-summary" aria-label="Resumen de respuestas">
+          <article><span>Participantes</span><strong>${participants}</strong></article>
+          <article><span>Promedio</span><strong>${avg ? avg.toFixed(1) : '0.0'}</strong></article>
+          <article><span>Valoraciones</span><strong>${answers.length}</strong></article>
+          <article><span>Comentarios</span><strong>${commentsCount}</strong></article>
+        </section>
+        <section class="answer-distribution" aria-label="Distribución de puntajes">
+          ${distribution.map((item) => `
+            <div class="answer-distribution-item">
+              <span>${item.score}</span>
+              <div><i style="width:${answers.length ? Math.max(4, (item.count / answers.length) * 100) : 0}%"></i></div>
+              <b>${item.count}</b>
+            </div>
+          `).join('')}
+        </section>
+        <section class="answer-filter-row" aria-label="Filtrar respuestas">
+          <button class="answer-filter-btn is-active" type="button" data-answer-filter="all">Todas</button>
+          <button class="answer-filter-btn" type="button" data-answer-filter="critical">Críticas 1-2</button>
+          <button class="answer-filter-btn" type="button" data-answer-filter="neutral">Neutras 3</button>
+          <button class="answer-filter-btn" type="button" data-answer-filter="positive">Positivas 4-5</button>
+          <button class="answer-filter-btn" type="button" data-answer-filter="comments">Con comentario</button>
+        </section>
+        <section id="answerDetailRows" class="answer-detail-list"></section>
+        <nav id="answerDetailPagination" class="answer-pagination" aria-label="Paginación de respuestas"></nav>
+      `);
+
+      const pageSize = 10;
+      let currentPage = 1;
+      let currentFilter = 'all';
+
+      const filteredAnswers = () => answers.filter((answer) => {
+        const score = Number(answer.valor_respuesta);
+        if (currentFilter === 'critical') return score <= 2;
+        if (currentFilter === 'neutral') return score === 3;
+        if (currentFilter === 'positive') return score >= 4;
+        if (currentFilter === 'comments') return String(answer.comentario || '').trim();
+        return true;
+      });
+
+      const rowTemplate = (answer) => {
+        const question = questions.get(answer.id_pregunta);
+        const status = feedbackStatus(Number(answer.valor_respuesta));
+        const rowQuestion = idQuestion
+          ? ''
+          : `
+            <strong>${escapeHtml(displayText(question?.categoria || `Pregunta ${answer.id_pregunta}`))}</strong>
+            <p>${escapeHtml(displayText(question?.texto_pregunta || 'Sin texto registrado.'))}</p>
+          `;
+
+        return `
+          <article class="answer-detail-row">
+            <div>
+              ${rowQuestion || '<strong>Respuesta registrada</strong>'}
+              ${answer.comentario ? `<em>${escapeHtml(displayText(answer.comentario))}</em>` : '<p class="muted-answer">Sin comentario adicional.</p>'}
+              <small>${escapeHtml(answer.correo_participante || 'Participante registrado')} - ${formatDate(answer.fecha_respuesta)}</small>
+            </div>
+            <b class="${status.className}" title="${escapeHtml(status.label)}">${escapeHtml(answer.valor_respuesta)}</b>
+          </article>
+        `;
+      };
+
+      const paintAnswerList = () => {
+        const rowsContainer = document.getElementById('answerDetailRows');
+        const pagination = document.getElementById('answerDetailPagination');
+        if (!rowsContainer || !pagination) return;
+        const visible = filteredAnswers();
+        const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+        currentPage = Math.min(Math.max(1, currentPage), totalPages);
+        const start = (currentPage - 1) * pageSize;
+        const pageRows = visible.slice(start, start + pageSize);
+        rowsContainer.innerHTML = pageRows.length
+          ? pageRows.map(rowTemplate).join('')
+          : emptyTemplate('No hay respuestas para este filtro.');
+        pagination.innerHTML = `
+          <span>${visible.length ? `${start + 1}-${Math.min(start + pageSize, visible.length)} de ${visible.length}` : '0 respuestas'}</span>
+          <div>
+            <button type="button" data-answer-page="prev" ${currentPage <= 1 ? 'disabled' : ''}>Anterior</button>
+            <b>Página ${currentPage} de ${totalPages}</b>
+            <button type="button" data-answer-page="next" ${currentPage >= totalPages ? 'disabled' : ''}>Siguiente</button>
+          </div>
+        `;
+      };
+
+      document.querySelectorAll('[data-answer-filter]').forEach((button) => {
+        button.addEventListener('click', () => {
+          currentFilter = button.dataset.answerFilter;
+          currentPage = 1;
+          document.querySelectorAll('[data-answer-filter]').forEach((item) => item.classList.toggle('is-active', item === button));
+          paintAnswerList();
+        });
+      });
+      document.getElementById('answerDetailPagination')?.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-answer-page]');
+        if (!button) return;
+        currentPage += button.dataset.answerPage === 'next' ? 1 : -1;
+        paintAnswerList();
+      });
+      paintAnswerList();
     }
 
     function dashboardAnswers() {
@@ -663,6 +1121,81 @@
       });
     }
 
+    function feedbackProcessOptions() {
+      return currentDashboardProcesses()
+        .slice()
+        .sort((a, b) => feedbackProcessRank(b) - feedbackProcessRank(a));
+    }
+
+    function feedbackProcessRank(item) {
+      const hasAnswersWeight = processHasFeedbackAnswers(item) ? 20000000000000 : 0;
+      const activeWeight = isObserved(item.status) || normalizeText(item.status).includes('curso') ? 10000000000000 : 0;
+      return hasAnswersWeight + activeWeight + new Date(item.raw.fecha_inicio || 0).getTime();
+    }
+
+    function processHasFeedbackAnswers(item) {
+      const planIds = processPlanIdSet(item);
+      return state.data.answers.some((answer) => planIds.has(Number(answer.id_plan)));
+    }
+
+    function ensureDefaultFeedbackProcess() {
+      if (state.feedbackFilters.process && state.processes.some((item) => String(item.id) === String(state.feedbackFilters.process))) return;
+      state.feedbackFilters.process = String(feedbackProcessOptions()[0]?.id || '');
+    }
+
+    function feedbackSelectedProcess() {
+      ensureDefaultFeedbackProcess();
+      return state.processes.find((item) => String(item.id) === String(state.feedbackFilters.process)) || null;
+    }
+
+    function processPlanIdSet(process) {
+      return new Set([process?.evaluatedPlan?.id_plan, process?.newPlan?.id_plan]
+        .filter(Boolean)
+        .map(Number));
+    }
+
+    function feedbackProcesses() {
+      const selected = feedbackSelectedProcess();
+      return selected ? [selected] : [];
+    }
+
+    function feedbackAnswers() {
+      const process = feedbackSelectedProcess();
+      const processPlanIds = process ? processPlanIdSet(process) : dashboardSurveyPlanIds();
+      const plans = mapBy(state.data.plans, 'id_plan');
+      const filters = state.feedbackFilters;
+
+      return state.data.answers.filter((answer) => {
+        const plan = plans.get(answer.id_plan);
+        const population = state.data.populations.find((item) => item.id_poblacion === answer.id_poblacion);
+        const matchesProcess = processPlanIds.has(Number(answer.id_plan));
+        const matchesCareer = !filters.career || displayText(plan?.nombre_carrera) === filters.career;
+        const matchesPopulation = !filters.population || displayText(population?.tipo_poblacion) === filters.population;
+        const matchesPlan = !filters.plan || String(answer.id_plan) === String(filters.plan);
+        return matchesProcess && matchesCareer && matchesPopulation && matchesPlan;
+      });
+    }
+
+    function feedbackProcessLabel(item) {
+      const period = item.period?.nombre_periodo || 'Sin periodo';
+      return `PC01-${item.id} - ${shortCareerName(item.career)} - ${shortPeriodName(period)}`;
+    }
+
+    function shortCareerName(value) {
+      const career = displayText(value);
+      const normalized = normalizeText(career);
+      if (normalized.includes('computacion') || normalized.includes('sistemas')) return 'Comp.';
+      if (normalized.includes('industrial')) return 'Ind.';
+      if (normalized.includes('electronica')) return 'Elect.';
+      if (normalized.includes('civil')) return 'Civil';
+      if (normalized.includes('arquitectura')) return 'Arq.';
+      return career.length > 14 ? `${career.slice(0, 11)}...` : career;
+    }
+
+    function shortPeriodName(value) {
+      return displayText(value).replace(/^20(\d{2})-/, '$1-');
+    }
+
     function dashboardCurrentPlanIds() {
       const nonHistoricalPlans = state.data.plans
         .filter((plan) => !normalizeText(plan.estado).includes('historico'))
@@ -673,13 +1206,19 @@
 
     function dashboardSurveyPlanIds() {
       const currentPlanIds = dashboardCurrentPlanIds();
+      const answeredPlanIds = new Set((state.data.answers || [])
+        .map((answer) => Number(answer.id_plan))
+        .filter((idPlan) => currentPlanIds.has(idPlan)));
+
       return new Set([...currentPlanIds].filter((idPlan) => {
         const relatedProcesses = state.processes.filter((item) => [
           item.evaluatedPlan?.id_plan,
           item.newPlan?.id_plan
         ].map(Number).includes(idPlan));
 
-        return !relatedProcesses.length || relatedProcesses.some((item) => item.currentStep <= FEEDBACK_COLLECTION_STEP);
+        return answeredPlanIds.has(idPlan)
+          || !relatedProcesses.length
+          || relatedProcesses.some((item) => item.currentStep <= FEEDBACK_COLLECTION_STEP);
       }));
     }
 
@@ -692,11 +1231,11 @@
       });
     }
 
-    function criticalQuestionItems() {
+    function criticalQuestionItems(sourceAnswers = dashboardAnswers()) {
       const questions = mapBy(state.data.questions, 'id_pregunta');
       const plans = mapBy(state.data.plans, 'id_plan');
       const populations = mapBy(state.data.populations, 'id_poblacion');
-      return Array.from(groupBy(dashboardAnswers(), (answer) => [
+      return Array.from(groupBy(sourceAnswers, (answer) => [
         answer.id_plan,
         answer.id_poblacion,
         answer.id_pregunta
@@ -711,45 +1250,55 @@
             meta: `${dashboardPlanTitle(plans.get(idPlan))} - ${dashboardPlanMeta(plans.get(idPlan))} - ${displayText(populations.get(idPopulation)?.tipo_poblacion || 'Población')}`,
             avg,
             count: answers.length,
-            status: feedbackStatus(avg)
+            status: feedbackStatus(avg),
+            idPlan,
+            idPopulation,
+            idQuestion,
+            action: 'feedback-detail'
           };
         })
         .filter((item) => item.avg > 0)
         .sort((a, b) => a.avg - b.avg);
     }
 
-    function lowSampleItems() {
+    function lowSampleItems(sourceAnswers = dashboardAnswers()) {
       const plans = mapBy(state.data.plans, 'id_plan');
       const populations = mapBy(state.data.populations, 'id_poblacion');
-      return Array.from(groupBy(dashboardAnswers(), (answer) => [
+      return Array.from(groupBy(sourceAnswers, (answer) => [
         answer.id_plan,
         answer.id_poblacion
       ].join('|')).entries())
         .map(([key, answers]) => {
           const [idPlan, idPopulation] = key.split('|').map(Number);
           const avg = average(answers.map((answer) => Number(answer.valor_respuesta)));
+          const participants = participantCount(answers);
           return {
             label: 'Validar muestra',
             title: displayText(populations.get(idPopulation)?.tipo_poblacion || 'Población'),
-            detail: `${answers.length} respuesta(s), promedio ${avg.toFixed(1)} de 5.`,
+            detail: `${participants} participante(s), promedio ${avg.toFixed(1)} de 5.`,
             meta: `${dashboardPlanTitle(plans.get(idPlan))} - ${dashboardPlanMeta(plans.get(idPlan))}`,
-            count: answers.length,
-            className: 'priority-warning'
+            count: participants,
+            className: 'priority-warning',
+            idPlan,
+            idPopulation,
+            action: 'feedback-detail'
           };
         })
         .filter((item) => item.count > 0 && item.count < 3)
         .sort((a, b) => a.count - b.count);
     }
 
-    function missingEvidenceItems() {
-      return dashboardProcesses()
+    function missingEvidenceItems(sourceProcesses = dashboardProcesses()) {
+      return sourceProcesses
         .filter((item) => !normalizeText(item.status).includes('finalizado') && item.evidence.length === 0)
         .map((item) => ({
           label: 'Falta respaldo',
           title: item.career,
           detail: 'Expediente en curso sin evidencias documentales registradas.',
           meta: `${item.period?.nombre_periodo || 'Sin periodo'} - PC01-${item.id}`,
-          className: 'priority-warning'
+          className: 'priority-warning',
+          processId: item.id,
+          action: 'process'
         }));
     }
 
@@ -789,18 +1338,21 @@
           status: 'Observado'
         }
       };
-      const active = panels[state.activeInsight] || panels.attention;
+      const visiblePanels = Object.entries(panels).filter(([key, panel]) => key !== 'feedback' || panel.rows.length);
+      if (!visiblePanels.some(([key]) => key === state.activeInsight)) state.activeInsight = 'attention';
+      const current = panels[state.activeInsight] || panels.attention;
 
-      document.getElementById('insightTabs').innerHTML = Object.entries(panels).map(([key, panel]) => `
+      document.getElementById('insightTabs').innerHTML = visiblePanels.map(([key, panel]) => `
         <button class="insight-tab${key === state.activeInsight ? ' is-active' : ''}" type="button" data-insight-tab="${key}">
           ${escapeHtml(panel.label)} (${panel.rows.length})
         </button>
       `).join('');
-      document.getElementById('insightPanelTitle').textContent = active.label;
-      document.getElementById('insightPanelNote').textContent = active.note;
-      document.getElementById('insightPanelList').innerHTML = active.rows.length
-        ? active.rows.slice(0, 6).map((item) => insightItemTemplate(item.title, item.detail, item.meta, active.status || item.status)).join('')
-        : emptyTemplate(active.empty);
+      document.getElementById('insightPanelTitle').textContent = current.label;
+      document.getElementById('insightPanelNote').textContent = current.note;
+      document.getElementById('insightPanelList').innerHTML = current.rows.length
+        ? current.rows.slice(0, 6).map((item) => insightItemTemplate(item, current.status || item.status)).join('')
+        : emptyTemplate(current.empty);
+      bindDrilldownCards(document.getElementById('insightPanelList'));
 
       document.querySelectorAll('[data-insight-tab]').forEach((button) => {
         button.addEventListener('click', () => {
@@ -829,7 +1381,9 @@
             title: item.career,
             detail: displayText(observedPhase?.observaciones_revision || item.latest?.observaciones_revision || item.raw.motivo_revision || 'Requiere revisión.'),
             meta: `${item.period?.nombre_periodo || 'Sin periodo'} - PC01-${item.id}`,
-            status: observedPhase?.estado_fase || item.status
+            status: observedPhase?.estado_fase || item.status,
+            processId: item.id,
+            action: 'process'
           };
         });
     }
@@ -840,15 +1394,19 @@
           .filter(({ step, entry }) => !entry && step.numero_paso < item.currentStep)
           .map(({ step }) => ({
             title: item.career,
-            detail: `Paso ${step.numero_paso} sin registro antes del último paso documentado.`,
-            meta: displayText(step.descripcion_paso)
+            detail: `Paso ${step.numero_paso} sin registro antes del ?ltimo paso documentado.`,
+            meta: displayText(step.descripcion_paso),
+            processId: item.id,
+            action: 'process'
           }));
 
         const lowEvidence = !normalizeText(item.status).includes('finalizado') && item.evidence.length === 0
           ? [{
               title: item.career,
               detail: 'Expediente en curso sin evidencias documentales registradas.',
-              meta: `${item.period?.nombre_periodo || 'Sin periodo'} - PC01-${item.id}`
+              meta: `${item.period?.nombre_periodo || 'Sin periodo'} - PC01-${item.id}`,
+              processId: item.id,
+              action: 'process'
             }]
           : [];
 
@@ -856,7 +1414,9 @@
           ? [{
               title: item.career,
               detail: displayText(item.latest?.observaciones_revision || item.raw.motivo_revision || 'Proceso observado sin detalle adicional.'),
-              meta: 'Observación activa'
+              meta: 'Observación activa',
+              processId: item.id,
+              action: 'process'
             }]
           : [];
 
@@ -864,10 +1424,10 @@
       });
     }
 
-    function feedbackAlertItems() {
+    function feedbackAlertItems(sourceAnswers = dashboardAnswers()) {
       const questions = mapBy(state.data.questions, 'id_pregunta');
       const plans = mapBy(state.data.plans, 'id_plan');
-      const byPlan = groupBy(dashboardAnswers(), 'id_plan');
+      const byPlan = groupBy(sourceAnswers, 'id_plan');
       const alerts = [];
 
       byPlan.forEach((answers, planId) => {
@@ -897,15 +1457,18 @@
       return alerts.sort((a, b) => a.detail.localeCompare(b.detail));
     }
 
-    function insightItemTemplate(title, detail, meta, status) {
+    function insightItemTemplate(item, status) {
+      const actionAttrs = item.processId
+        ? `role="button" tabindex="0" data-priority-action="process" data-process-id="${escapeHtml(item.processId)}"`
+        : '';
       return `
-        <article class="insight-item">
+        <article class="insight-item ${actionAttrs ? 'drilldown-card' : ''}" ${actionAttrs}>
           <div class="insight-top">
-            <strong>${escapeHtml(title)}</strong>
+            <strong>${escapeHtml(item.title)}</strong>
             ${statusBadge(status)}
           </div>
-          <p>${escapeHtml(detail || '-')}</p>
-          <span>${escapeHtml(meta || '')}</span>
+          <p>${escapeHtml(item.detail || '-')}</p>
+          <span>${escapeHtml(item.meta || '')}</span>
         </article>
       `;
     }
@@ -969,7 +1532,7 @@
               <div class="admin-actions">
                 <button class="mini-button" type="button" data-admin-action="edit-process" data-id="${item.id}">Editar expediente</button>
                 <button class="mini-button danger" type="button" data-admin-action="delete-process" data-id="${item.id}">Eliminar expediente</button>
-                <button class="mini-button" type="button" data-admin-action="add-history" data-process-id="${item.id}">Agregar fase</button>
+                <button class="mini-button primary" type="button" data-admin-action="add-history" data-process-id="${item.id}">Agregar fase</button>
                 <button class="mini-button" type="button" data-admin-action="add-evidence">Agregar evidencia</button>
               </div>
             </div>
@@ -1152,7 +1715,7 @@
                   ${entry
                     ? `<button class="mini-button" type="button" data-admin-action="edit-history" data-id="${entry.id_historial}">Editar fase</button>
                        <button class="mini-button danger" type="button" data-admin-action="delete-history" data-id="${entry.id_historial}">Eliminar fase</button>`
-                    : `<button class="mini-button" type="button" data-admin-action="add-history" data-process-id="${item.id}" data-step-id="${step.id_paso}">Registrar fase</button>`}
+                    : `<button class="mini-button primary" type="button" data-admin-action="add-history" data-process-id="${item.id}" data-step-id="${step.id_paso}">Registrar fase</button>`}
                 </div>
               </div>
       `;
@@ -1238,7 +1801,7 @@
             <div class="mini muted">${escapeHtml(category)}</div>
             <div class="score-value">${avg.toFixed(1)}</div>
             <div class="score-bar"><div class="score-fill" style="width:${Math.min(100, avg * 20)}%"></div></div>
-            <div class="mini muted">${answers.length} respuesta(s)</div>
+            <div class="mini muted">${participantCount(answers)} participante(s), ${answers.length} valoración(es)</div>
           </article>
         `;
       }).join('');
@@ -1321,7 +1884,8 @@
 
     function supportDefinitions() {
       return [
-        ['courses', 'Planes y cursos', supportCourses],
+        ['plans', 'Planes', supportPlans],
+        ['courses', 'Cursos', supportCourses],
         ['answers', 'Feedback', supportAnswers],
         ['questions', 'Preguntas de encuesta', supportSurveyQuestions],
         ['evidence', 'Evidencias', supportEvidence],
@@ -1527,15 +2091,6 @@
             ['history', 'Nueva fase', 'Agrega un paso ejecutado dentro de la trazabilidad.'],
             ['evidence', 'Nueva evidencia', 'Vincula un documento a una fase registrada.']
           ]
-        },
-        {
-          title: 'Modelo curricular',
-          note: 'Planes, cursos y reglas académicas del plan de estudios.',
-          actions: [
-            ['plans', 'Nuevo plan', 'Crea una versión de plan de estudio.'],
-            ['courses', 'Nuevo curso', 'Agrega cursos a un plan curricular.'],
-            ['prerequisites', 'Nuevo prerrequisito', 'Relaciona cursos objetivo y previos.']
-          ]
         }
       ];
       const surveyUrl = new URL('encuesta.html', window.location.href).href;
@@ -1553,7 +2108,7 @@
             <section class="admin-section-card admin-section-main">
               <div class="admin-section-header">
                 <div>
-                  <h3>Encuesta y participantes</h3>
+                  <h3><span class="ui-icon" aria-hidden="true">📝</span>Encuesta y participantes</h3>
                   <p>Control del formulario público y de la información que alimenta el tablero.</p>
                 </div>
               </div>
@@ -1574,7 +2129,7 @@
             <section class="admin-section-card">
               <div class="admin-section-header">
                 <div>
-                  <h3>Pendientes administrativos</h3>
+                  <h3><span class="ui-icon" aria-hidden="true">⚠️</span>Pendientes administrativos</h3>
                   <p>Elementos que conviene revisar antes de presentar o tomar decisiones.</p>
                 </div>
               </div>
@@ -1584,12 +2139,12 @@
             </section>
           </div>
 
-          <div class="admin-maintenance-grid">
+          <div class="admin-maintenance-grid admin-maintenance-grid-single">
             ${actionGroups.map((group) => `
               <section class="admin-section-card">
                 <div class="admin-section-header">
                   <div>
-                    <h3>${escapeHtml(group.title)}</h3>
+                    <h3><span class="ui-icon" aria-hidden="true">${adminGroupIcon(group.title)}</span>${escapeHtml(group.title)}</h3>
                     <p>${escapeHtml(group.note)}</p>
                   </div>
                 </div>
@@ -1609,33 +2164,28 @@
           </div>
 
           <div class="admin-login-note">
-            Para editar o eliminar registros existentes usa el módulo Consultas o el detalle del expediente seleccionado. Esta pestaña queda como centro de mantenimiento rápido para el administrador.
+            Para planes, cursos y prerrequisitos usa Consultas. Esta pestaña queda como centro rápido para operar encuestas, expedientes, fases y evidencias.
           </div>
         </div>
       `;
       bindAdminActionButtons();
       bindAdminSupportShortcuts();
+      bindDrilldownCards(container);
     }
 
     function adminDiagnostics() {
-      const unassignedQuestions = adminUnassignedQuestions();
       const currentProcesses = currentDashboardProcesses();
       const participants = state.data.participants || [];
       return [
         {
           label: 'Participantes',
           value: participants.length,
-          note: `${state.data.answers.length} respuesta(s) registradas`
+          note: `${state.data.answers.length} valoración(es) de preguntas`
         },
         {
           label: 'Preguntas',
           value: state.data.questions.length,
           note: `${state.data.questionLinks.length} asignación(es) por carrera y grupo`
-        },
-        {
-          label: 'Sin asignación',
-          value: unassignedQuestions.length,
-          note: 'Preguntas que no aparecerán en la encuesta'
         },
         {
           label: 'Sin evidencia',
@@ -1645,38 +2195,47 @@
       ];
     }
 
+    function adminGroupIcon(title) {
+      const text = normalizeText(title);
+      if (text.includes('modelo')) return '🧩';
+      if (text.includes('proceso')) return '📁';
+      return '⚙️';
+    }
+
     function adminUnassignedQuestions() {
       const assignedIds = new Set((state.data.questionLinks || []).map((link) => Number(link.id_pregunta)));
       return (state.data.questions || []).filter((question) => !assignedIds.has(Number(question.id_pregunta)));
     }
 
     function adminPendingItems() {
-      const unassignedQuestions = adminUnassignedQuestions().slice(0, 2).map((question) => ({
-        label: 'Pregunta sin asignación',
-        title: displayText(question.categoria || `Pregunta ${question.id_pregunta}`),
-        detail: displayText(question.texto_pregunta || 'Sin texto registrado.'),
-        meta: 'Asignar carrera y grupo de interés',
-        className: 'priority-warning'
-      }));
       const evidence = missingEvidenceItems().slice(0, 2);
       const lowSample = lowSampleItems().slice(0, 1);
-      return [...unassignedQuestions, ...evidence, ...lowSample].slice(0, 5);
+      return [...evidence, ...lowSample].slice(0, 5);
     }
 
     function adminStatTemplate(item) {
       return `
         <article class="admin-stat-card">
-          <span>${escapeHtml(item.label)}</span>
+          <span><span class="ui-icon" aria-hidden="true">${adminStatIcon(item.label)}</span>${escapeHtml(item.label)}</span>
           <strong>${escapeHtml(item.value)}</strong>
           <p>${escapeHtml(item.note)}</p>
         </article>
       `;
     }
 
+    function adminStatIcon(label) {
+      const text = normalizeText(label);
+      if (text.includes('participante')) return '👥';
+      if (text.includes('pregunta')) return '📝';
+      if (text.includes('asignacion')) return '🔗';
+      if (text.includes('evidencia')) return '📄';
+      return '📌';
+    }
+
     function adminPendingTemplate(item) {
       return `
         <article class="priority-item ${escapeHtml(item.className || 'priority-warning')}">
-          <span>${escapeHtml(item.label)}</span>
+          <span><span class="ui-icon" aria-hidden="true">${priorityItemIcon(item)}</span>${escapeHtml(item.label)}</span>
           <strong>${escapeHtml(item.title)}</strong>
           <p>${escapeHtml(item.detail)}</p>
           <em>${escapeHtml(item.meta)}</em>
@@ -1687,6 +2246,12 @@
     function bindAdminSupportShortcuts() {
       document.querySelectorAll('[data-admin-support]').forEach((button) => {
         button.addEventListener('click', () => {
+          if (button.dataset.adminSupport === 'answers') {
+            state.activeModule = 'feedback';
+            renderActiveModule();
+            renderFeedbackSections();
+            return;
+          }
           state.activeModule = 'model';
           state.activeSupport = button.dataset.adminSupport;
           renderSupport();
@@ -1722,7 +2287,7 @@
         estado: displayText(plan.estado),
         _record: plan
       }));
-      return { label: 'Planes y cursos', rows, columns: ['id', 'version', 'carrera', 'creditos', 'estado'], tableKey: 'plans' };
+      return { label: 'Planes', rows, columns: ['id', 'version', 'carrera', 'creditos', 'estado'], tableKey: 'plans' };
     }
 
     function supportCourses() {
@@ -1736,7 +2301,7 @@
         modalidad: course.modalidad,
         _record: course
       }));
-      return { label: 'Planes y cursos', rows, columns: ['codigo', 'curso', 'plan', 'area', 'ciclo', 'creditos', 'modalidad'], tableKey: 'courses' };
+      return { label: 'Cursos', rows, columns: ['codigo', 'curso', 'plan', 'area', 'ciclo', 'creditos', 'modalidad'], tableKey: 'courses' };
     }
 
     function supportAnswers() {
@@ -1812,12 +2377,7 @@
     function feedbackSummaryTemplate(answers, questions, populations, plans) {
       if (!answers.length) return '';
 
-      const participantKeys = answers.map((answer) => [
-        answer.id_participante || answer.correo_participante || `respuesta-${answer.id_respuesta}`,
-        answer.id_plan,
-        answer.id_poblacion
-      ].join('|'));
-      const uniqueParticipants = unique(participantKeys).length;
+      const uniqueParticipants = participantCount(answers);
       const overall = average(answers.map((answer) => Number(answer.valor_respuesta)));
       const comments = answers.filter((answer) => String(answer.comentario || '').trim()).length;
       const criticalCount = answers.filter((answer) => Number(answer.valor_respuesta) < 3).length;
@@ -1885,13 +2445,13 @@
         .slice(0, 5);
 
       const metricCards = [
-        ['Promedio general', overall ? overall.toFixed(1) : '0.0', feedbackStatus(overall).label],
-        ['Participantes únicos', uniqueParticipants, 'Por correo, carrera y grupo'],
-        ['Puntajes críticos', criticalCount, 'Respuestas menores a 3'],
-        ['Comentarios', comments, 'Aclaraciones opcionales']
-      ].map(([label, value, note]) => `
+        ['📊', 'Promedio general', overall ? overall.toFixed(1) : '0.0', feedbackStatus(overall).label],
+        ['👥', 'Participantes únicos', uniqueParticipants, 'Por correo, carrera y grupo'],
+        ['🚩', 'Puntajes críticos', criticalCount, 'Valoraciones menores a 3'],
+        ['💬', 'Comentarios', comments, 'Aclaraciones opcionales']
+      ].map(([icon, label, value, note]) => `
         <article class="score-card">
-          <div class="mini muted">${escapeHtml(label)}</div>
+          <div class="mini muted score-label"><span class="ui-icon" aria-hidden="true">${icon}</span>${escapeHtml(label)}</div>
           <div class="score-value">${escapeHtml(value)}</div>
           <div class="mini muted">${escapeHtml(note)}</div>
         </article>
@@ -1904,7 +2464,7 @@
             <div class="feedback-summary-row">
               <span>${escapeHtml(item.label)}</span>
               <strong class="${feedbackStatus(item.avg).className}">${item.avg.toFixed(1)}</strong>
-              <small>${item.participants ? `${item.participants} participante(s) - ` : ''}${item.count} respuesta(s)</small>
+              <small>${item.participants ? `${item.participants} participante(s) - ` : ''}${item.count} valoración(es)</small>
             </div>
           `).join('')}
         </article>
@@ -1918,7 +2478,7 @@
                 <span>${escapeHtml(item.career)}</span>
                 <small>${escapeHtml(item.population)}</small>
                 <strong class="${feedbackStatus(item.avg).className}">${item.avg.toFixed(1)}</strong>
-                <em>${item.participants} participante(s) - ${item.count} respuesta(s)</em>
+                <em>${item.participants} participante(s) - ${item.count} valoración(es)</em>
               </div>
             `).join('')}
           </div>
@@ -1931,7 +2491,7 @@
             <div class="feedback-summary-row feedback-question-row">
               <span>${escapeHtml(item.label)}</span>
               <strong class="${feedbackStatus(item.avg).className}">${item.avg.toFixed(1)}</strong>
-              <small>${escapeHtml(item.meta)} - ${item.count} respuesta(s)</small>
+              <small>${escapeHtml(item.meta)} - ${item.count} valoración(es)</small>
             </div>
           `).join('')}
         </article>
@@ -2172,7 +2732,10 @@
       });
       if (action === 'edit-history') openRecordForm('history', findRecord('history', Number(button.dataset.id)));
       if (action === 'delete-history') confirmDelete('history', findRecord('history', Number(button.dataset.id)));
-      if (action === 'add-evidence') openRecordForm('evidence', { fecha_carga: dateTimeLocalValue(new Date()) });
+      if (action === 'add-evidence') openRecordForm('evidence', {
+        id_proceso: selected?.id || '',
+        fecha_carga: dateTimeLocalValue(new Date())
+      });
       if (action === 'edit-evidence') openRecordForm('evidence', findRecord('evidence', Number(button.dataset.id)));
       if (action === 'delete-evidence') confirmDelete('evidence', findRecord('evidence', Number(button.dataset.id)));
       if (action === 'edit-course') openRecordForm('courses', findRecord('courses', Number(button.dataset.id)));
@@ -2441,7 +3004,7 @@
 
     function fieldTemplate(field, record) {
       const value = record?.[field.name] ?? '';
-      const wide = field.type === 'textarea' || field.name.includes('comentario') || field.name.includes('motivo') ? ' wide' : '';
+      const wide = field.type === 'textarea' || field.name.includes('comentario') || field.name.includes('motivo') || field.name === 'id_historial' ? ' wide' : '';
       const required = field.required === false ? '' : ' required';
 
       if (field.type === 'textarea') {
@@ -2456,7 +3019,9 @@
       if (field.type === 'select' || field.type === 'select-static') {
         const options = field.type === 'select-static'
           ? field.options.map((option) => ({ value: option, label: option }))
-          : (state.data[field.source] || []).map((item) => ({ value: item[field.value], label: field.text(item) }));
+          : (state.data[field.source] || [])
+            .filter((item) => !field.filter || field.filter(item, record))
+            .map((item) => ({ value: item[field.value], label: field.text(item) }));
         return `
           <div class="field${wide}">
             <label for="${field.name}">${escapeHtml(field.label)}</label>
@@ -2628,7 +3193,13 @@
 
     function historyOptionLabel(item) {
       const step = state.data.steps.find((stepItem) => stepItem.id_paso === item.id_paso);
-      return `Historial ${item.id_historial} - PC01-${item.id_proceso} - Paso ${step?.numero_paso || item.id_paso}`;
+      const process = state.processes.find((processItem) => Number(processItem.id) === Number(item.id_proceso));
+      const actor = state.data.actors.find((actorItem) => Number(actorItem.id_actor) === Number(item.id_actor));
+      const processLabel = process ? `PC01-${process.id} - ${displayText(process.career)}` : `PC01-${item.id_proceso}`;
+      const stepLabel = `Paso ${step?.numero_paso || item.id_paso}`;
+      const status = displayText(item.estado_fase || 'Sin estado');
+      const actorLabel = actor?.siglas ? ` ? ${displayText(actor.siglas)}` : '';
+      return `${processLabel} - ${stepLabel} - ${status}${actorLabel}`;
     }
 
     function courseOptionLabel(item) {
@@ -2661,7 +3232,15 @@
     }
 
     function participantKey(answer) {
-      return answer.id_participante || answer.correo_participante || `respuesta-${answer.id_respuesta}`;
+      return [
+        answer.id_participante || answer.correo_participante || answer.correo_institucional || `respuesta-${answer.id_respuesta}`,
+        answer.id_plan,
+        answer.id_poblacion
+      ].join('|');
+    }
+
+    function participantCount(answers) {
+      return unique((answers || []).map(participantKey)).length;
     }
 
     function areaName(id) {
@@ -2724,10 +3303,10 @@
         total_creditos_requeridos: 'créditos requeridos',
         creditos: 'créditos',
         version: 'versión',
-        area: 'área',
+        area: 'Área',
         categoria: 'categoría',
         codigo: 'código',
-        nombre_area: 'área académica',
+        nombre_area: 'Área académica',
         numero_ciclo: 'número de ciclo',
         fecha_inicio: 'fecha de inicio',
         fecha_fin: 'fecha de fin',

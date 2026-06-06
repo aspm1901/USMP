@@ -1,9 +1,10 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Vista Externa | Gestión Curricular USMP FIA</title>
+  <meta name="description" content="Sistema web de gestión curricular y retroalimentación de grupos de interés para la Facultad de Ingeniería y Arquitectura de la USMP. Seguimiento del proceso PC01.">
   <link rel="icon" type="image/png" href="./logousmp.png?v=3">
   <link rel="shortcut icon" type="image/png" href="./logousmp.png?v=3">
   <link rel="apple-touch-icon" href="./logousmp.png?v=3">
@@ -12,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="./assets/css/styles.css?v=39">
+  <link rel="stylesheet" href="./assets/css/styles.css?v=48">
 </head>
 <body>
   <header class="topbar">
@@ -38,20 +39,24 @@
         <div class="sidebar-label">Módulos</div>
         <nav class="module-nav">
           <button class="module-nav-button is-active" type="button" data-module-target="dashboard">
-            <span>Tablero</span>
-            <small>Resumen ejecutivo</small>
+            <span class="ui-icon nav-icon" aria-hidden="true">📊</span>
+            <span class="nav-copy"><span class="nav-label">Tablero</span><small>Resumen</small></span>
           </button>
           <button class="module-nav-button" type="button" data-module-target="records">
-            <span>Expedientes</span>
-            <small>Trazabilidad PC01</small>
+            <span class="ui-icon nav-icon" aria-hidden="true">📁</span>
+            <span class="nav-copy"><span class="nav-label">Expedientes</span><small>Trazabilidad</small></span>
+          </button>
+          <button class="module-nav-button" type="button" data-module-target="feedback">
+            <span class="ui-icon nav-icon" aria-hidden="true">📝</span>
+            <span class="nav-copy"><span class="nav-label">Encuestas</span><small>Feedback</small></span>
           </button>
           <button class="module-nav-button" type="button" data-module-target="model">
-            <span>Consultas</span>
-            <small>Modelo de datos</small>
+            <span class="ui-icon nav-icon" aria-hidden="true">🔎</span>
+            <span class="nav-copy"><span class="nav-label">Consultas</span><small>Modelo</small></span>
           </button>
           <button class="module-nav-button" type="button" data-module-target="admin">
-            <span>Administración</span>
-            <small>Solo admin</small>
+            <span class="ui-icon nav-icon" aria-hidden="true">⚙️</span>
+            <span class="nav-copy"><span class="nav-label">Administración</span><small>Admin</small></span>
           </button>
         </nav>
       </aside>
@@ -74,7 +79,7 @@
           <section class="dashboard-group" aria-label="Resumen operativo">
             <div class="dashboard-group-header">
               <div>
-                <h3>Resumen operativo</h3>
+                <h3><span class="ui-icon" aria-hidden="true">📌</span>Resumen operativo</h3>
                 <p>Estado general de expedientes, avance y evidencias vigentes.</p>
               </div>
             </div>
@@ -83,21 +88,21 @@
               Esta vista permite consultar el avance de modificación curricular, sus responsables y evidencias registradas.
             </section>
 
-            <section class="dashboard-controls" aria-label="Filtros del tablero">
-              <p class="dashboard-scope">Los indicadores muestran planes no históricos. Las gráficas de encuesta priorizan planes que aún están en etapa de captar información de grupos de interés.</p>
+            <section class="dashboard-controls dashboard-controls-simple" aria-label="Filtros del tablero">
+              <p class="dashboard-scope">Lectura ejecutiva del proceso PC01. El detalle de encuestas está en la pestaña Encuestas.</p>
               <div class="field">
                 <label for="dashboardCareer">Carrera</label>
                 <select id="dashboardCareer">
                   <option value="">Todas</option>
                 </select>
               </div>
-              <div class="field">
+              <div class="field is-hidden">
                 <label for="dashboardPopulation">Grupo de interés</label>
                 <select id="dashboardPopulation">
                   <option value="">Todos</option>
                 </select>
               </div>
-              <div class="field">
+              <div class="field is-hidden">
                 <label for="dashboardPlan">Plan</label>
                 <select id="dashboardPlan">
                   <option value="">Todos</option>
@@ -107,41 +112,42 @@
             </section>
 
             <section class="metrics" aria-label="Indicadores principales">
-              <article class="metric">
-                <div class="metric-label">Expedientes</div>
+              <article class="metric metric-link" role="button" tabindex="0" data-dashboard-jump="records">
+                <div class="metric-label"><span class="ui-icon" aria-hidden="true">📁</span>Expedientes</div>
                 <div id="metricTotal" class="metric-value">0</div>
                 <div class="metric-caption">Procesos curriculares registrados</div>
               </article>
-              <article class="metric">
-                <div class="metric-label">Avance promedio</div>
+              <article class="metric metric-link" role="button" tabindex="0" data-dashboard-jump="records">
+                <div class="metric-label"><span class="ui-icon" aria-hidden="true">📈</span>Avance promedio</div>
                 <div id="metricProgress" class="metric-value">0%</div>
                 <div class="metric-caption">Según historial de fases</div>
               </article>
-              <article class="metric">
-                <div class="metric-label">Atención activa</div>
+              <article class="metric metric-link" role="button" tabindex="0" data-dashboard-jump="attention">
+                <div class="metric-label"><span class="ui-icon" aria-hidden="true">⚠️</span>Atención activa</div>
                 <div id="metricAttention" class="metric-value">0</div>
                 <div class="metric-caption">Observaciones o fases observadas</div>
               </article>
-              <article class="metric">
-                <div class="metric-label">Feedback promedio</div>
+              <article id="metricFeedbackCard" class="metric metric-link" role="button" tabindex="0" data-dashboard-jump="feedback">
+                <div class="metric-label"><span class="ui-icon" aria-hidden="true">💬</span>Feedback promedio</div>
                 <div id="metricFeedback" class="metric-value">0.0</div>
                 <div class="metric-caption">Escala 1 a 5</div>
               </article>
             </section>
 
             <section class="metric-strip" aria-label="Indicadores secundarios">
-              <div><span>Observados</span><strong id="metricObserved">0</strong></div>
-              <div><span>Finalizados</span><strong id="metricDone">0</strong></div>
-              <div><span>Periodo activo</span><strong id="metricActivePeriod">-</strong></div>
-              <div><span>Evidencias</span><strong id="metricEvidence">0</strong></div>
+              <div class="metric-link" role="button" tabindex="0" data-dashboard-jump="observed"><span><span class="ui-icon" aria-hidden="true">🚩</span>Observados</span><strong id="metricObserved">0</strong></div>
+              <div class="metric-link" role="button" tabindex="0" data-dashboard-jump="done"><span><span class="ui-icon" aria-hidden="true">✅</span>Finalizados</span><strong id="metricDone">0</strong></div>
+              <div><span><span class="ui-icon" aria-hidden="true">📅</span>Periodo activo</span><strong id="metricActivePeriod">-</strong></div>
+              <div class="metric-link" role="button" tabindex="0" data-dashboard-jump="evidence"><span><span class="ui-icon" aria-hidden="true">📄</span>Evidencias</span><strong id="metricEvidence">0</strong></div>
             </section>
           </section>
 
-          <section class="dashboard-group dashboard-group-feedback" aria-label="Encuestas y acciones por feedback">
+          <section id="dashboardFeedbackSummary" class="dashboard-group dashboard-group-feedback is-hidden" aria-label="Resumen de feedback">
             <div class="dashboard-group-header">
               <div>
-                <h3>Encuestas y acciones por feedback</h3>
-                <p>Prioridades, muestra baja y resultados vinculados a grupos de interés.</p>
+                <h3><span class="ui-icon" aria-hidden="true">📝</span>Resumen de encuestas</h3>
+                <p>Solo aparece cuando existen respuestas registradas para el filtro actual.</p>
+                <div id="dashboardFeedbackContent" class="dashboard-feedback-summary"></div>
               </div>
             </div>
 
@@ -151,7 +157,7 @@
               <article class="panel chart-panel chart-panel-wide">
                 <div class="panel-header">
                   <div>
-                    <h2 class="panel-title">Feedback por carrera y grupo</h2>
+                    <h2 class="panel-title"><span class="ui-icon" aria-hidden="true">📊</span>Feedback por carrera y grupo</h2>
                     <span class="panel-note">Promedio en escala 1 a 5</span>
                   </div>
                 </div>
@@ -161,7 +167,7 @@
               <article class="panel chart-panel">
                 <div class="panel-header">
                   <div>
-                    <h2 class="panel-title">Semáforo de respuestas</h2>
+                    <h2 class="panel-title"><span class="ui-icon" aria-hidden="true">🚦</span>Semáforo de respuestas</h2>
                     <span class="panel-note">Distribución general</span>
                   </div>
                 </div>
@@ -171,7 +177,7 @@
               <article class="panel chart-panel chart-panel-critical">
                 <div class="panel-header">
                   <div>
-                    <h2 class="panel-title">Preguntas críticas</h2>
+                    <h2 class="panel-title"><span class="ui-icon" aria-hidden="true">🚩</span>Preguntas críticas</h2>
                     <span class="panel-note">Menor promedio</span>
                   </div>
                 </div>
@@ -183,7 +189,7 @@
           <section class="dashboard-group" aria-label="Seguimiento PC01">
             <div class="dashboard-group-header">
               <div>
-                <h3>Seguimiento PC01</h3>
+                <h3><span class="ui-icon" aria-hidden="true">🧭</span>Seguimiento PC01</h3>
                 <p>Lectura de alertas del proceso y significado de estados.</p>
               </div>
             </div>
@@ -201,7 +207,7 @@
 
             <section class="panel compact-legend">
               <div class="panel-header">
-                <h2 class="panel-title">Leyenda de estados</h2>
+                <h2 class="panel-title"><span class="ui-icon" aria-hidden="true">🏷️</span>Leyenda de estados</h2>
                 <span class="panel-note">Interpretación pública</span>
               </div>
             <div class="state-legend">
@@ -214,11 +220,97 @@
           </section>
         </section>
 
+        <section class="module-page" data-module-page="feedback">
+          <div class="module-heading">
+            <div>
+              <p class="module-kicker">Grupos de interés</p>
+              <h2><span class="heading-icon" aria-hidden="true">📝</span>Encuestas</h2>
+            </div>
+            <span class="module-note">Feedback por carrera, plan y participante</span>
+          </div>
+
+          <section class="dashboard-controls" aria-label="Filtros de encuestas">
+            <p class="dashboard-scope">Filtra el feedback por proceso, carrera, grupo de interés o plan.</p>
+            <div class="field">
+              <label for="feedbackProcess">Proceso PC01</label>
+              <select id="feedbackProcess">
+                <option value="">Último proceso</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="feedbackCareer">Carrera</label>
+              <select id="feedbackCareer">
+                <option value="">Todas</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="feedbackPopulation">Grupo de interés</label>
+              <select id="feedbackPopulation">
+                <option value="">Todos</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="feedbackPlan">Plan</label>
+              <select id="feedbackPlan">
+                <option value="">Todos</option>
+              </select>
+            </div>
+            <button id="feedbackClearFilters" class="mini-button" type="button">Limpiar</button>
+          </section>
+
+          <section id="feedbackEmptyState" class="panel feedback-empty-state is-hidden">
+            <div class="empty">Aún no hay respuestas registradas para este filtro.</div>
+          </section>
+
+          <section id="feedbackAnalysis" class="dashboard-group dashboard-group-feedback" aria-label="Análisis de encuestas">
+            <div class="dashboard-group-header">
+              <div>
+                <h3><span class="ui-icon" aria-hidden="true">📊</span>Análisis de encuestas</h3>
+                <p>Promedios, semáforo y preguntas críticas vinculadas a grupos de interés.</p>
+              </div>
+            </div>
+
+            <section id="feedbackPriorityBoard" class="priority-board" aria-label="Prioridades de atención"></section>
+
+            <section class="dashboard-charts" aria-label="Gráficos de feedback curricular">
+              <article class="panel chart-panel chart-panel-wide">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title"><span class="ui-icon" aria-hidden="true">📊</span>Feedback por carrera y grupo</h2>
+                    <span class="panel-note">Promedio en escala 1 a 5</span>
+                  </div>
+                </div>
+                <div id="feedbackChartCareerGroup" class="chart-list"></div>
+              </article>
+
+              <article class="panel chart-panel">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title"><span class="ui-icon" aria-hidden="true">🚦</span>Semáforo de respuestas</h2>
+                    <span class="panel-note">Distribución general</span>
+                  </div>
+                </div>
+                <div id="feedbackChartStatus" class="status-chart"></div>
+              </article>
+
+              <article class="panel chart-panel chart-panel-critical">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title"><span class="ui-icon" aria-hidden="true">🚩</span>Preguntas críticas</h2>
+                    <span class="panel-note">Menor promedio</span>
+                  </div>
+                </div>
+                <div id="feedbackChartCriticalQuestions" class="critical-chart"></div>
+              </article>
+            </section>
+          </section>
+        </section>
+
         <section class="module-page" data-module-page="records">
           <div class="module-heading">
             <div>
               <p class="module-kicker">Seguimiento PC01</p>
-              <h2>Expedientes curriculares</h2>
+              <h2><span class="heading-icon" aria-hidden="true">📁</span>Expedientes curriculares</h2>
             </div>
             <span class="module-note">Selecciona un expediente para revisar su trazabilidad</span>
           </div>
@@ -246,7 +338,7 @@
           <section class="layout">
             <aside class="panel">
               <div class="panel-header">
-                <h2 class="panel-title">Expedientes</h2>
+                <h2 class="panel-title"><span class="ui-icon" aria-hidden="true">📁</span>Expedientes</h2>
                 <span id="resultCount" class="panel-note">0 resultados</span>
               </div>
               <div id="processList" class="process-list"></div>
@@ -262,7 +354,7 @@
           <div class="module-heading">
             <div>
               <p class="module-kicker">Consultas del modelo</p>
-              <h2>Datos relacionados</h2>
+              <h2><span class="heading-icon" aria-hidden="true">🔎</span>Datos relacionados</h2>
             </div>
             <span class="module-note">Tablas de soporte organizadas para lectura</span>
           </div>
@@ -270,7 +362,7 @@
           <section class="panel support-section">
             <div class="panel-header">
               <div>
-                <h2 class="panel-title">Consultas del modelo</h2>
+                <h2 class="panel-title"><span class="ui-icon" aria-hidden="true">🧩</span>Consultas del modelo</h2>
                 <div class="panel-note">Información derivada de las tablas relacionadas</div>
               </div>
             </div>
@@ -283,7 +375,7 @@
           <div class="module-heading">
             <div>
               <p class="module-kicker">Gestión interna</p>
-              <h2>Administración</h2>
+              <h2><span class="heading-icon" aria-hidden="true">⚙️</span>Administración</h2>
             </div>
             <span class="module-note">Crear, corregir o eliminar registros para la exposición</span>
           </div>
@@ -291,7 +383,7 @@
           <section class="panel admin-home">
             <div class="panel-header">
               <div>
-                <h2 class="panel-title">Acciones rápidas</h2>
+                <h2 class="panel-title"><span class="ui-icon" aria-hidden="true">⚡</span>Acciones rápidas</h2>
                 <div class="panel-note">Los cambios se guardan directamente en Supabase</div>
               </div>
             </div>
@@ -301,6 +393,10 @@
       </section>
     </div>
   </main>
+
+  <footer style="text-align:center; padding:28px 0 22px; color:#657084; font-size:13px; font-weight:700; border-top:1px solid #e3e7ef; margin-top:32px;">
+    Sistema de Gestión Curricular USMP FIA · Teoría y Diseño de Base de Datos · 2026
+  </footer>
 
   <div id="modalOverlay" class="modal-overlay" aria-hidden="true">
     <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -315,7 +411,7 @@
     </section>
   </div>
 
-  <script src="./assets/js/app.js?v=39"></script>
+  <script src="./assets/js/app.js?v=49"></script>
 </body>
 </html>
 
