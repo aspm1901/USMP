@@ -58,6 +58,8 @@ const CONFIG = {
       mallaEditable: false
     };
 
+    let mallaArrowRenderTimer = null;
+
     const EDIT_CONFIG = {
       processes: {
         table: TABLES.processes,
@@ -250,6 +252,8 @@ const CONFIG = {
       document.getElementById('mallaAddPrereqBtn').addEventListener('click', mallaAddPrerequisite);
       document.getElementById('mallaBackBtn').addEventListener('click', () => { state.activeModule = 'dashboard'; render(); });
       document.getElementById('mallaExportPdf').addEventListener('click', mallaExportPdf);
+      document.getElementById('mallaContainer').addEventListener('scroll', () => scheduleMallaArrowRender(0));
+      window.addEventListener('resize', () => scheduleMallaArrowRender(80));
       document.getElementById('loginButton').addEventListener('click', openLoginModal);
       document.getElementById('logoutButton').addEventListener('click', signOut);
       document.getElementById('modalClose').addEventListener('click', closeModal);
@@ -3373,8 +3377,17 @@ const CONFIG = {
       renderMallaStats(courses, cycles);
       renderMallaGrid(courses, cycles, areas);
       renderMallaLegend(courses, areas);
-      // Delay para que el layout se estabilice antes de calcular posiciones
-      setTimeout(() => renderMallaArrows(courses, areas), 80);
+      scheduleMallaArrowRender(80);
+    }
+
+    function scheduleMallaArrowRender(delay = 0) {
+      clearTimeout(mallaArrowRenderTimer);
+      mallaArrowRenderTimer = setTimeout(() => {
+        if (state.activeModule !== 'malla' || !state.mallaPlanId || !state.data) return;
+        const courses = state.data.courses.filter((c) => c.id_plan === state.mallaPlanId);
+        const areas = mapBy(state.data.areas, 'id_area');
+        renderMallaArrows(courses, areas);
+      }, delay);
     }
 
     function populateMallaProcessSelector() {
@@ -3699,11 +3712,14 @@ const CONFIG = {
 
       // Ajustar tamaño del SVG al contenedor
       const containerRect = container.getBoundingClientRect();
-      svg.setAttribute('width', container.scrollWidth);
-      svg.setAttribute('height', container.scrollHeight);
-      svg.style.display = '';
-      svg.style.width = container.scrollWidth + 'px';
-      svg.style.height = container.scrollHeight + 'px';
+      const svgWidth = Math.max(container.scrollWidth, container.clientWidth);
+      const svgHeight = Math.max(container.scrollHeight, container.clientHeight);
+      svg.setAttribute('width', svgWidth);
+      svg.setAttribute('height', svgHeight);
+      svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
+      svg.style.display = 'block';
+      svg.style.width = svgWidth + 'px';
+      svg.style.height = svgHeight + 'px';
 
       prereqs.forEach((p) => {
         const fromEl = container.querySelector(`[data-course-id="${p.id_curso_previo}"]`);
@@ -3716,13 +3732,13 @@ const CONFIG = {
         const fromRect = fromEl.getBoundingClientRect();
         const toRect = toEl.getBoundingClientRect();
 
-        const x1 = fromRect.right - containerRect.left + 2;
-        const y1 = fromRect.top + fromRect.height / 2 - containerRect.top;
-        const x2 = toRect.left - containerRect.left - 2;
-        const y2 = toRect.top + toRect.height / 2 - containerRect.top;
+        const x1 = fromRect.right - containerRect.left + container.scrollLeft + 3;
+        const y1 = fromRect.top + fromRect.height / 2 - containerRect.top + container.scrollTop;
+        const x2 = toRect.left - containerRect.left + container.scrollLeft - 3;
+        const y2 = toRect.top + toRect.height / 2 - containerRect.top + container.scrollTop;
 
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        
+
         let d = '';
         if (Math.abs(y1 - y2) < 10) {
           // Están en la misma línea horizontal, línea recta

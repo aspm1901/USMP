@@ -3055,6 +3055,12 @@
 
     .malla-arrows-svg {
       display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 8;
+      overflow: visible;
+      pointer-events: none;
     }
 
     .malla-course {
@@ -3063,14 +3069,16 @@
 
     .malla-arrow {
       fill: none;
-      stroke-width: 1.5;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
       transition: stroke 200ms ease, stroke-width 200ms ease, opacity 200ms ease;
-      opacity: 0.6;
+      opacity: 0.78;
     }
 
     .malla-arrow.is-chain {
       opacity: 1;
-      stroke-width: 3.5;
+      stroke-width: 3;
     }
 
     .malla-course-prereqs {
