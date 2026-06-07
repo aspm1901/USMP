@@ -1,4 +1,4 @@
-const CONFIG = {
+﻿const CONFIG = {
       SUPABASE_URL: 'https://syanolcxbjarcmpxkmqf.supabase.co',
       SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5YW5vbGN4YmphcmNtcHhrbXFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MzA2OTYsImV4cCI6MjA5NDQwNjY5Nn0.bV93pPhfVpBGBRpodmttKuHf57ty7kFE0gUkB4jnwsQ'
     };
@@ -55,10 +55,9 @@ const CONFIG = {
       isAdmin: false,
       mallaProcessId: null,
       mallaPlanId: null,
-      mallaEditable: false
+      mallaEditable: false,
+      mallaSelectedCourseId: null
     };
-
-    let mallaArrowRenderTimer = null;
 
     const EDIT_CONFIG = {
       processes: {
@@ -252,8 +251,6 @@ const CONFIG = {
       document.getElementById('mallaAddPrereqBtn').addEventListener('click', mallaAddPrerequisite);
       document.getElementById('mallaBackBtn').addEventListener('click', () => { state.activeModule = 'dashboard'; render(); });
       document.getElementById('mallaExportPdf').addEventListener('click', mallaExportPdf);
-      document.getElementById('mallaContainer').addEventListener('scroll', () => scheduleMallaArrowRender(0));
-      window.addEventListener('resize', () => scheduleMallaArrowRender(80));
       document.getElementById('loginButton').addEventListener('click', openLoginModal);
       document.getElementById('logoutButton').addEventListener('click', signOut);
       document.getElementById('modalClose').addEventListener('click', closeModal);
@@ -2755,7 +2752,7 @@ const CONFIG = {
       if (action === 'edit-evidence') openRecordForm('evidence', findRecord('evidence', Number(button.dataset.id)));
       if (action === 'delete-evidence') confirmDelete('evidence', findRecord('evidence', Number(button.dataset.id)));
       if (action === 'edit-course') openRecordForm('courses', findRecord('courses', Number(button.dataset.id)));
-      if (action === 'delete-course') confirmDelete('courses', findRecord('courses', Number(button.dataset.id)));
+      if (action === 'delete-course') confirmDeleteCourse(findRecord('courses', Number(button.dataset.id)));
       if (action === 'add-record') openRecordForm(button.dataset.tableKey, defaultRecord(button.dataset.tableKey));
       if (action === 'edit-record') openRecordForm(button.dataset.tableKey, findRecordByEncodedId(button.dataset.tableKey, button.dataset.recordId));
       if (action === 'delete-record') confirmDelete(button.dataset.tableKey, findRecordByEncodedId(button.dataset.tableKey, button.dataset.recordId));
@@ -3085,6 +3082,10 @@ const CONFIG = {
 
     async function confirmDelete(tableKey, record) {
       if (!record) return;
+      if (tableKey === 'courses') {
+        await confirmDeleteCourse(record);
+        return;
+      }
       const config = EDIT_CONFIG[tableKey];
       const label = recordLabel(tableKey, record);
       const accepted = window.confirm(`Eliminar ${config.label}: ${label}?`);
@@ -3099,6 +3100,86 @@ const CONFIG = {
       await refreshData();
       showConnectionMessage('Registro eliminado correctamente.');
       setTimeout(hideConnectionMessage, 2400);
+    }
+
+    async function confirmDeleteCourse(course) {
+      if (!course) return;
+      const relations = coursePrerequisiteRelations(course.id_curso);
+      const body = `
+        <div class="delete-relations-list">
+          <h3>${relations.length ? 'Relaciones de prerrequisito asociadas' : 'Sin prerrequisitos asociados'}</h3>
+          ${relations.length
+            ? `<ol>${relations.map((relation) => `<li>${escapeHtml(relation.label)}</li>`).join('')}</ol>`
+            : '<p class="delete-note">Este curso no tiene relaciones de prerrequisito registradas.</p>'}
+          <p class="delete-note">
+            ${relations.length
+              ? 'Si continúas, se eliminarán solo estas relaciones y luego el curso. No se borrará ningún otro curso.'
+              : 'Si continúas, se eliminará únicamente este curso.'}
+          </p>
+        </div>
+        <div class="form-actions">
+          <button class="mini-button" type="button" data-close-modal>Cancelar</button>
+          <button class="btn" type="button" id="confirmCourseDeleteButton">Eliminar curso</button>
+        </div>
+      `;
+
+      openModal('Eliminar curso', courseOptionLabel(course), body);
+      document.getElementById('confirmCourseDeleteButton').addEventListener('click', async () => {
+        const deleted = await deleteCourseWithPrerequisites(course.id_curso);
+        if (!deleted) return;
+
+        closeModal();
+        await refreshData();
+        showConnectionMessage(relations.length
+          ? `Curso eliminado. También se quitaron ${relations.length} relación(es) de prerrequisito asociadas.`
+          : 'Curso eliminado correctamente.');
+        setTimeout(hideConnectionMessage, 3000);
+      });
+    }
+    function coursePrerequisiteRelations(courseId) {
+      const courses = mapBy(state.data.courses || [], 'id_curso');
+      const targetId = Number(courseId);
+      return (state.data.prerequisites || [])
+        .filter((relation) => Number(relation.id_curso_objetivo) === targetId || Number(relation.id_curso_previo) === targetId)
+        .map((relation) => {
+          const objective = courses.get(relation.id_curso_objetivo);
+          const previous = courses.get(relation.id_curso_previo);
+          const objectiveLabel = objective ? courseOptionLabel(objective) : `Curso ${relation.id_curso_objetivo}`;
+          const previousLabel = previous ? courseOptionLabel(previous) : `Curso ${relation.id_curso_previo}`;
+          const role = Number(relation.id_curso_objetivo) === targetId
+            ? 'Este curso requiere'
+            : 'Este curso habilita';
+          return {
+            ...relation,
+            label: Number(relation.id_curso_objetivo) === targetId
+              ? `${role}: ${previousLabel}`
+              : `${role}: ${objectiveLabel}`
+          };
+        });
+    }
+
+    async function deleteCourseWithPrerequisites(courseId) {
+      const targetId = Number(courseId);
+
+      const { error: relationError } = await state.client
+        .from(TABLES.prerequisites)
+        .delete()
+        .or(`id_curso_objetivo.eq.${targetId},id_curso_previo.eq.${targetId}`);
+      if (relationError) {
+        showConnectionMessage(`No se pudieron eliminar las relaciones de prerrequisito asociadas: ${relationError.message}`);
+        return false;
+      }
+
+      const { error: courseError } = await state.client
+        .from(TABLES.courses)
+        .delete()
+        .eq('id_curso', targetId);
+      if (courseError) {
+        showConnectionMessage(`No se pudo eliminar el curso: ${courseError.message}`);
+        return false;
+      }
+
+      return true;
     }
 
     function openModal(title, subtitle, body) {
@@ -3377,17 +3458,6 @@ const CONFIG = {
       renderMallaStats(courses, cycles);
       renderMallaGrid(courses, cycles, areas);
       renderMallaLegend(courses, areas);
-      scheduleMallaArrowRender(80);
-    }
-
-    function scheduleMallaArrowRender(delay = 0) {
-      clearTimeout(mallaArrowRenderTimer);
-      mallaArrowRenderTimer = setTimeout(() => {
-        if (state.activeModule !== 'malla' || !state.mallaPlanId || !state.data) return;
-        const courses = state.data.courses.filter((c) => c.id_plan === state.mallaPlanId);
-        const areas = mapBy(state.data.areas, 'id_area');
-        renderMallaArrows(courses, areas);
-      }, delay);
     }
 
     function populateMallaProcessSelector() {
@@ -3422,6 +3492,7 @@ const CONFIG = {
       const val = document.getElementById('mallaProcess').value;
       state.mallaProcessId = val ? Number(val) : null;
       state.mallaPlanId = null;
+      state.mallaSelectedCourseId = null;
 
       const proc = state.processes.find((p) => p.id === state.mallaProcessId);
       state.mallaEditable = proc ? proc.currentStep >= MALLA_DESIGN_STEP && state.isAdmin : false;
@@ -3444,6 +3515,7 @@ const CONFIG = {
     function onMallaPlanChange() {
       const val = document.getElementById('mallaPlan').value;
       state.mallaPlanId = val ? Number(val) : null;
+      state.mallaSelectedCourseId = null;
       renderMalla();
     }
 
@@ -3462,7 +3534,9 @@ const CONFIG = {
 
     function renderMallaGrid(courses, cycles, areas) {
       const grid = document.getElementById('mallaGrid');
+      clearMallaArrows();
       if (!courses.length) {
+        clearMallaCourseDetail();
         grid.innerHTML = '<div class="empty" style="grid-column:1/-1">No hay cursos registrados para este plan. Usa el botón "+ Agregar curso" para comenzar a diseñar la malla.</div>';
         grid.style.gridTemplateColumns = '1fr';
         return;
@@ -3471,6 +3545,7 @@ const CONFIG = {
       const usedCycleIds = new Set(courses.map((c) => c.id_ciclo));
       const activeCycles = cycles.filter((cy) => usedCycleIds.has(cy.id_ciclo));
       if (!activeCycles.length) {
+        clearMallaCourseDetail();
         grid.innerHTML = '<div class="empty" style="grid-column:1/-1">Los cursos no tienen ciclo asignado.</div>';
         return;
       }
@@ -3484,7 +3559,10 @@ const CONFIG = {
       });
 
       // --- Ordenamiento topológico y por cadenas ---
-      const prereqs = state.data.prerequisites || [];
+      const courseIds = new Set(courses.map((c) => c.id_curso));
+      const prereqs = (state.data.prerequisites || []).filter((p) =>
+        courseIds.has(p.id_curso_objetivo) && courseIds.has(p.id_curso_previo)
+      );
       const courseRowMap = new Map(); // id_curso -> row index
 
       // Calculamos peso de cada curso (descendientes directos e indirectos)
@@ -3498,7 +3576,18 @@ const CONFIG = {
       }
 
       const weights = {};
-      courses.forEach((c) => { weights[c.id_curso] = calcWeight(c.id_curso); });
+      const incomingCounts = {};
+      const outgoingCounts = {};
+      courses.forEach((c) => {
+        weights[c.id_curso] = calcWeight(c.id_curso);
+        incomingCounts[c.id_curso] = prereqs.filter((p) => p.id_curso_objetivo === c.id_curso).length;
+        outgoingCounts[c.id_curso] = prereqs.filter((p) => p.id_curso_previo === c.id_curso).length;
+      });
+
+      const areaOrder = (course) => {
+        const area = areas.get(course.id_area);
+        return `${area?.color_hexadecimal || ''}|${area?.nombre_area || ''}`;
+      };
 
       activeCycles.forEach((cy) => {
         const arr = grouped[cy.id_ciclo];
@@ -3510,17 +3599,24 @@ const CONFIG = {
           const incomingRows = incoming.map(p => courseRowMap.get(p.id_curso_previo)).filter(r => r !== undefined);
           c._targetRow = incomingRows.length ? Math.min(...incomingRows) : 999;
           c._weight = weights[c.id_curso];
+          c._incomingCount = incomingCounts[c.id_curso] || 0;
+          c._outgoingCount = outgoingCounts[c.id_curso] || 0;
+          c._isChainCourse = c._incomingCount > 0 || c._outgoingCount > 0;
+          c._isIndependent = !c._isChainCourse;
+          c._areaOrder = areaOrder(c);
         });
 
         arr.sort((a, b) => {
           // Si ambos tienen un "target row", el que deba estar más arriba va primero
+          if (a._isIndependent !== b._isIndependent) return a._isIndependent ? 1 : -1;
+          if (a._outgoingCount !== b._outgoingCount) return b._outgoingCount - a._outgoingCount;
+          if (a._weight !== b._weight) return b._weight - a._weight;
           if (a._targetRow !== b._targetRow) return a._targetRow - b._targetRow;
           // Luego, los que tengan más "peso" (cadena más larga) van primero
-          if (a._weight !== b._weight) return b._weight - a._weight;
+          const areaCompare = a._areaOrder.localeCompare(b._areaOrder, 'es');
+          if (areaCompare) return areaCompare;
           // Desempate por área
-          const aArea = areas.get(a.id_area)?.nombre_area || '';
-          const bArea = areas.get(b.id_area)?.nombre_area || '';
-          return aArea.localeCompare(bArea, 'es') || a.nombre.localeCompare(b.nombre, 'es');
+          return a.nombre.localeCompare(b.nombre, 'es');
         });
 
         // Guardamos la fila final en la que quedó cada curso en este ciclo
@@ -3564,12 +3660,34 @@ const CONFIG = {
 
       grid.querySelectorAll('.malla-course').forEach((el) => {
         el.addEventListener('mouseenter', () => highlightChain(Number(el.dataset.courseId)));
-        el.addEventListener('mouseleave', clearChainHighlight);
+        el.addEventListener('mouseleave', () => {
+          if (state.mallaSelectedCourseId) {
+            highlightChain(state.mallaSelectedCourseId);
+          } else {
+            clearChainHighlight();
+          }
+        });
         el.addEventListener('click', (e) => {
           if (e.target.classList.contains('malla-course-delete') || e.target.classList.contains('malla-course-edit')) return;
-          showCourseTooltip(e, Number(el.dataset.courseId));
+          const courseId = Number(el.dataset.courseId);
+          state.mallaSelectedCourseId = state.mallaSelectedCourseId === courseId ? null : courseId;
+          if (state.mallaSelectedCourseId) {
+            highlightChain(state.mallaSelectedCourseId);
+            renderMallaCourseDetail(courseId);
+          } else {
+            clearChainHighlight();
+            clearMallaCourseDetail();
+          }
         });
       });
+
+      if (state.mallaSelectedCourseId && grid.querySelector(`[data-course-id="${state.mallaSelectedCourseId}"]`)) {
+        highlightChain(state.mallaSelectedCourseId);
+        renderMallaCourseDetail(state.mallaSelectedCourseId);
+      } else {
+        state.mallaSelectedCourseId = null;
+        clearMallaCourseDetail();
+      }
 
       grid.querySelectorAll('.malla-course-edit').forEach((btn) => {
         btn.addEventListener('click', (e) => {
@@ -3692,6 +3810,15 @@ const CONFIG = {
         showConnectionMessage('Área actualizada.');
         setTimeout(hideConnectionMessage, 2400);
       });
+    }
+
+    function clearMallaArrows() {
+      const svg = document.getElementById('mallaArrows');
+      if (!svg) return;
+      const defs = svg.querySelector('defs');
+      svg.innerHTML = '';
+      if (defs) svg.appendChild(defs);
+      svg.style.display = 'none';
     }
 
     /* --- Flechas SVG de prerrequisitos (Fase 2 inline) --- */
@@ -3818,45 +3945,63 @@ const CONFIG = {
       });
     }
 
-    /* --- Tooltip --- */
-
-    function showCourseTooltip(event, courseId) {
-      const existing = document.querySelector('.malla-tooltip');
-      if (existing) existing.remove();
-
+    function renderMallaCourseDetail(courseId) {
+      const panel = document.getElementById('mallaCourseDetail');
+      if (!panel) return;
       const course = state.data.courses.find((c) => c.id_curso === courseId);
-      if (!course) return;
+      if (!course) {
+        clearMallaCourseDetail();
+        return;
+      }
 
       const area = state.data.areas.find((a) => a.id_area === course.id_area);
       const cycle = state.data.cycles.find((cy) => cy.id_ciclo === course.id_ciclo);
       const prereqs = (state.data.prerequisites || [])
         .filter((p) => p.id_curso_objetivo === courseId)
         .map((p) => state.data.courses.find((c) => c.id_curso === p.id_curso_previo)?.nombre || '?');
+      const dependents = (state.data.prerequisites || [])
+        .filter((p) => p.id_curso_previo === courseId)
+        .map((p) => state.data.courses.find((c) => c.id_curso === p.id_curso_objetivo)?.nombre || '?');
 
-      const tip = document.createElement('div');
-      tip.className = 'malla-tooltip';
-      tip.innerHTML = `
-        <strong>${escapeHtml(course.nombre)}</strong>
-        <span>Código: ${escapeHtml(course.codigo_curso)}</span>
-        <span>Créditos: ${course.creditos}</span>
-        <span>Área: ${escapeHtml(area?.nombre_area || '—')}</span>
-        <span>Ciclo: ${escapeHtml(cycle?.denominacion || '—')}</span>
-        <span>Modalidad: ${escapeHtml(course.modalidad || '—')}</span>
-        ${prereqs.length ? `<span>Prerrequisitos: ${prereqs.map((n) => escapeHtml(n)).join(', ')}</span>` : ''}
+      panel.classList.remove('is-hidden');
+      panel.innerHTML = `
+        <div class="malla-course-detail-header">
+          <div>
+            <h3>${escapeHtml(course.nombre)}</h3>
+            <p class="muted">${escapeHtml(course.codigo_curso)} · ${escapeHtml(cycle?.denominacion || 'Sin ciclo')}</p>
+          </div>
+          <button class="mini-button" type="button" id="clearMallaCourseDetail">Limpiar ruta</button>
+        </div>
+        <div class="malla-course-detail-grid">
+          <div class="malla-course-detail-item"><span>Créditos</span><strong>${course.creditos}</strong></div>
+          <div class="malla-course-detail-item"><span>Área</span><strong>${escapeHtml(area?.nombre_area || 'Sin área')}</strong></div>
+          <div class="malla-course-detail-item"><span>Modalidad</span><strong>${escapeHtml(course.modalidad || 'Sin modalidad')}</strong></div>
+          <div class="malla-course-detail-item"><span>Tipo</span><strong>${course.es_electivo ? 'Electivo' : 'Obligatorio'}</strong></div>
+        </div>
+        <div class="malla-course-detail-relations">
+          <div class="malla-course-detail-item">
+            <h4>Prerrequisitos</h4>
+            ${prereqs.length ? `<ul>${prereqs.map((name) => `<li>${escapeHtml(name)}</li>`).join('')}</ul>` : '<p>No registra prerrequisitos.</p>'}
+          </div>
+          <div class="malla-course-detail-item">
+            <h4>Cursos que habilita</h4>
+            ${dependents.length ? `<ul>${dependents.map((name) => `<li>${escapeHtml(name)}</li>`).join('')}</ul>` : '<p>No habilita cursos posteriores.</p>'}
+          </div>
+        </div>
       `;
-      document.body.appendChild(tip);
-
-      const rect = event.currentTarget.getBoundingClientRect();
-      tip.style.left = `${Math.min(rect.left, window.innerWidth - 300)}px`;
-      tip.style.top = `${rect.bottom + 8}px`;
-
-      setTimeout(() => { if (tip.parentNode) tip.remove(); }, 4000);
-      document.addEventListener('click', function handler() {
-        if (tip.parentNode) tip.remove();
-        document.removeEventListener('click', handler);
-      }, { once: true });
+      document.getElementById('clearMallaCourseDetail').addEventListener('click', () => {
+        state.mallaSelectedCourseId = null;
+        clearChainHighlight();
+        clearMallaCourseDetail();
+      });
     }
 
+    function clearMallaCourseDetail() {
+      const panel = document.getElementById('mallaCourseDetail');
+      if (!panel) return;
+      panel.classList.add('is-hidden');
+      panel.innerHTML = '';
+    }
     /* --- Formularios CRUD de malla --- */
 
     async function mallaAddCourse() {
@@ -4181,12 +4326,7 @@ const CONFIG = {
     }
 
     async function mallaDeleteCourse(courseId) {
-      if (!confirm('¿Eliminar este curso de la malla?')) return;
-      const { error } = await state.client.from(TABLES.courses).delete().eq('id_curso', courseId);
-      if (error) { alert('Error al eliminar: ' + error.message); return; }
-      await refreshData();
-      showConnectionMessage('Curso eliminado de la malla.');
-      setTimeout(hideConnectionMessage, 2400);
+      await confirmDeleteCourse(findRecord('courses', Number(courseId)));
     }
 
     /* ================================================================

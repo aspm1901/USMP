@@ -1,0 +1,4 @@
+.agent/
+.codex_tmp/
+EXTRAS/
+*.bak
