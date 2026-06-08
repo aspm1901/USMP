@@ -3443,3 +3443,161 @@
     .metric:nth-child(2) .metric-value { animation-delay: 100ms; }
     .metric:nth-child(3) .metric-value { animation-delay: 200ms; }
     .metric:nth-child(4) .metric-value { animation-delay: 300ms; }
+
+/* =========================================================
+   MODO OSCURO PREMIUM (slate dark theme)
+   ========================================================= */
+body.dark-theme {
+  background-color: #0f172a !important; /* Slate 900 */
+  color: #e2e8f0 !important; /* Slate 200 */
+}
+
+/* Surfaces */
+body.dark-theme .topbar,
+body.dark-theme .module-sidebar,
+body.dark-theme .card,
+body.dark-theme .modal-content,
+body.dark-theme .module-content,
+body.dark-theme .stat-card,
+body.dark-theme .record-card,
+body.dark-theme .malla-container {
+  background-color: #1e293b !important; /* Slate 800 */
+  border-color: #334155 !important; /* Slate 700 */
+  color: #f8fafc !important; /* Slate 50 */
+}
+
+/* Header Text overrides */
+body.dark-theme .page-title,
+body.dark-theme h1,
+body.dark-theme h2,
+body.dark-theme h3,
+body.dark-theme h4 {
+  color: #f8fafc !important; 
+}
+
+body.dark-theme .page-subtitle,
+body.dark-theme .sidebar-label,
+body.dark-theme p {
+  color: #94a3b8 !important; /* Slate 400 */
+}
+
+/* Forms & Inputs */
+body.dark-theme input,
+body.dark-theme select,
+body.dark-theme textarea,
+body.dark-theme .malla-filters {
+  background-color: #0f172a !important;
+  color: #f1f5f9 !important;
+  border-color: #475569 !important;
+}
+
+body.dark-theme input:focus,
+body.dark-theme select:focus,
+body.dark-theme textarea:focus {
+  border-color: #38bdf8 !important; /* Sky 400 */
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2) !important;
+}
+
+/* Buttons */
+body.dark-theme .btn-light {
+  background-color: #334155 !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+body.dark-theme .btn-light:hover {
+  background-color: #475569 !important;
+}
+body.dark-theme .btn-primary {
+  background-color: #0ea5e9 !important; /* Sky 500 */
+  color: #fff !important;
+  border: none !important;
+}
+body.dark-theme .btn-primary:hover {
+  background-color: #0284c7 !important; /* Sky 600 */
+}
+
+/* Tables */
+body.dark-theme table th {
+  background-color: #0f172a !important;
+  color: #cbd5e1 !important;
+  border-bottom: 1px solid #334155 !important;
+}
+body.dark-theme table td {
+  border-bottom: 1px solid #1e293b !important;
+  color: #f1f5f9 !important;
+}
+
+/* Pills & Badges */
+body.dark-theme .readonly-pill {
+  background-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+body.dark-theme .status-badge {
+  background-color: rgba(56, 189, 248, 0.15) !important;
+  color: #7dd3fc !important;
+  border: 1px solid rgba(56, 189, 248, 0.3) !important;
+}
+
+/* Malla Grid Specifics */
+body.dark-theme .malla-cycle-header {
+  background-color: #334155 !important;
+  color: #f8fafc !important;
+  border: 1px solid #475569 !important;
+  border-bottom: none !important;
+}
+
+body.dark-theme .malla-course {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5) !important;
+}
+body.dark-theme .malla-course-name {
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+body.dark-theme .malla-empty-slot {
+  border-color: #334155 !important;
+  color: #475569 !important;
+}
+body.dark-theme .malla-empty-slot:hover {
+  border-color: #64748b !important;
+  color: #94a3b8 !important;
+  background-color: rgba(255,255,255,0.05) !important;
+}
+
+/* Sidebar navigation */
+body.dark-theme .module-nav-button {
+  color: #94a3b8 !important;
+}
+body.dark-theme .module-nav-button:hover {
+  background-color: #334155 !important;
+  color: #f8fafc !important;
+}
+body.dark-theme .module-nav-button.is-active {
+  background-color: rgba(14, 165, 233, 0.15) !important;
+  color: #38bdf8 !important;
+  border-left-color: #38bdf8 !important;
+}
+body.dark-theme .module-nav-button small {
+  color: #64748b !important;
+}
+
+/* =========================================================
+   DRAG AND DROP EFFECTS
+   ========================================================= */
+.malla-course[draggable="true"] {
+  cursor: grab;
+}
+.malla-course[draggable="true"]:active,
+.malla-course.is-dragging {
+  cursor: grabbing;
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+.drag-over {
+  border: 2px dashed #0ea5e9 !important;
+  background-color: rgba(14, 165, 233, 0.1) !important;
+}
+body.dark-theme .drag-over {
+  border-color: #38bdf8 !important;
+  background-color: rgba(56, 189, 248, 0.15) !important;
+}

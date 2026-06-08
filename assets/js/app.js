@@ -1,4 +1,4 @@
-﻿const CONFIG = {
+const CONFIG = {
       SUPABASE_URL: 'https://syanolcxbjarcmpxkmqf.supabase.co',
       SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5YW5vbGN4YmphcmNtcHhrbXFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MzA2OTYsImV4cCI6MjA5NDQwNjY5Nn0.bV93pPhfVpBGBRpodmttKuHf57ty7kFE0gUkB4jnwsQ'
     };
@@ -3606,18 +3606,33 @@
           c._areaOrder = areaOrder(c);
         });
 
-        arr.sort((a, b) => {
-          // Si ambos tienen un "target row", el que deba estar más arriba va primero
-          if (a._isIndependent !== b._isIndependent) return a._isIndependent ? 1 : -1;
-          if (a._outgoingCount !== b._outgoingCount) return b._outgoingCount - a._outgoingCount;
-          if (a._weight !== b._weight) return b._weight - a._weight;
-          if (a._targetRow !== b._targetRow) return a._targetRow - b._targetRow;
-          // Luego, los que tengan más "peso" (cadena más larga) van primero
-          const areaCompare = a._areaOrder.localeCompare(b._areaOrder, 'es');
-          if (areaCompare) return areaCompare;
-          // Desempate por área
-          return a.nombre.localeCompare(b.nombre, 'es');
-        });
+        const customOrderStr = localStorage.getItem('usmp_custom_order_' + state.mallaPlanId);
+        const customOrderMap = customOrderStr ? JSON.parse(customOrderStr) : {};
+        const manualOrder = customOrderMap[cy.id_ciclo];
+        
+        if (manualOrder && manualOrder.length > 0) {
+          arr.sort((a, b) => {
+            const idxA = manualOrder.indexOf(a.id_curso);
+            const idxB = manualOrder.indexOf(b.id_curso);
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+            return 0;
+          });
+        } else {
+          arr.sort((a, b) => {
+            // Si ambos tienen un "target row", el que deba estar más arriba va primero
+            if (a._isIndependent !== b._isIndependent) return a._isIndependent ? 1 : -1;
+            if (a._outgoingCount !== b._outgoingCount) return b._outgoingCount - a._outgoingCount;
+            if (a._weight !== b._weight) return b._weight - a._weight;
+            if (a._targetRow !== b._targetRow) return a._targetRow - b._targetRow;
+            // Luego, los que tengan más "peso" (cadena más larga) van primero
+            const areaCompare = a._areaOrder.localeCompare(b._areaOrder, 'es');
+            if (areaCompare) return areaCompare;
+            // Desempate por área
+            return a.nombre.localeCompare(b.nombre, 'es');
+          });
+        }
 
         // Guardamos la fila final en la que quedó cada curso en este ciclo
         arr.forEach((c, index) => {
@@ -3657,6 +3672,73 @@
       });
 
       grid.innerHTML = html;
+
+            let draggedCourseId = null;
+      let sourceCycleId = null;
+      let draggedElement = null;
+
+      grid.ondragstart = (e) => {
+        const el = e.target.closest('.malla-course');
+        if (el) {
+          draggedElement = el;
+          draggedCourseId = Number(el.dataset.courseId);
+          sourceCycleId = Number(el.dataset.cycleId);
+          e.dataTransfer.effectAllowed = 'move';
+          setTimeout(() => el.classList.add('is-dragging'), 0);
+        }
+      };
+
+      grid.ondragend = (e) => {
+        const el = e.target.closest('.malla-course');
+        if (el) el.classList.remove('is-dragging');
+        grid.querySelectorAll('.malla-course, .malla-empty-slot').forEach(el => el.classList.remove('drag-over'));
+        draggedElement = null;
+      };
+
+      grid.ondragover = (e) => {
+        e.preventDefault();
+        const dropTarget = e.target.closest('.malla-course, .malla-empty-slot');
+        if (dropTarget && draggedElement && dropTarget !== draggedElement) {
+          const targetCycleId = Number(dropTarget.dataset.cycleId || dropTarget.dataset.cycle);
+          if (targetCycleId === sourceCycleId) {
+            e.dataTransfer.dropEffect = 'move';
+            
+            // Lógica de Swap visual en vivo
+            const parent = dropTarget.parentNode;
+            const nextA = draggedElement.nextSibling;
+            const nextB = dropTarget.nextSibling;
+            
+            // Evitar oscilación si nextA === dropTarget o viceversa
+            if (nextA === dropTarget) {
+                parent.insertBefore(dropTarget, draggedElement);
+            } else if (nextB === draggedElement) {
+                parent.insertBefore(draggedElement, dropTarget);
+            } else {
+                parent.insertBefore(draggedElement, nextB);
+                parent.insertBefore(dropTarget, nextA);
+            }
+          }
+        }
+      };
+
+      grid.ondrop = (e) => {
+        e.preventDefault();
+        if (draggedCourseId && sourceCycleId) {
+            const customOrderStr = localStorage.getItem('usmp_custom_order_' + state.mallaPlanId);
+            const customOrderMap = customOrderStr ? JSON.parse(customOrderStr) : {};
+            
+            // Simplemente leemos el orden final que quedó en el DOM tras los swaps
+            const finalOrder = Array.from(grid.querySelectorAll(`[data-cycle-id="${sourceCycleId}"]`))
+                                      .map(el => Number(el.dataset.courseId))
+                                      .filter(id => id);
+            
+            customOrderMap[sourceCycleId] = finalOrder;
+            localStorage.setItem('usmp_custom_order_' + state.mallaPlanId, JSON.stringify(customOrderMap));
+            
+            renderMallaGrid(courses, cycles, areas);
+        }
+        grid.querySelectorAll('.malla-course, .malla-empty-slot').forEach(el => el.classList.remove('drag-over'));
+      };
 
       grid.querySelectorAll('.malla-course').forEach((el) => {
         el.addEventListener('mouseenter', () => highlightChain(Number(el.dataset.courseId)));
@@ -3714,7 +3796,9 @@
 
       return `
         <div class="malla-course ${isElective ? 'is-elective' : ''}"
+             draggable="true"
              data-course-id="${course.id_curso}"
+             data-cycle-id="${course.id_ciclo}"
              style="${isElective ? '' : `background-color:${color}`}">
           ${adminBtns}
           <div class="malla-course-name">${escapeHtml(course.nombre)}</div>
@@ -4514,3 +4598,23 @@
     function hideConnectionMessage() {
       document.getElementById('connectionAlert').classList.remove('is-visible');
     }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
+  if (themeToggleBtn) {
+    const isDark = localStorage.getItem('usmp_theme') === 'dark';
+    if (isDark) {
+        document.body.classList.add('dark-theme');
+        themeToggleBtn.innerHTML = '☀️'; // Sun
+    } else {
+        themeToggleBtn.innerHTML = '🌙'; // Moon
+    }
+
+    themeToggleBtn.addEventListener('click', () => {
+      document.body.classList.toggle('dark-theme');
+      const currentlyDark = document.body.classList.contains('dark-theme');
+      localStorage.setItem('usmp_theme', currentlyDark ? 'dark' : 'light');
+      themeToggleBtn.innerHTML = currentlyDark ? '☀️' : '🌙';
+    });
+  }
+});

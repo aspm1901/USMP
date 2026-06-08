@@ -10,11 +10,17 @@
   <link rel="apple-touch-icon" href="./logousmp.png?v=3">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="icon" type="image/png" href="./logousmp.png?v=3">
+  <link rel="shortcut icon" type="image/png" href="./logousmp.png?v=3">
+  <link rel="apple-touch-icon" href="./logousmp.png?v=3">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
   <link rel="stylesheet" href="./assets/css/styles.css?v=52">
 </head>
 <body>
@@ -28,6 +34,7 @@
         </div>
       </div>
       <div class="session-actions">
+        <button id="themeToggleBtn" class="btn btn-light" type="button" aria-label="Cambiar tema" style="padding: 0.25rem 0.5rem; font-size: 1.1rem; background: transparent; border: none;">🌙</button>
         <div id="sessionBadge" class="readonly-pill">Invitado - Solo lectura</div>
         <button id="loginButton" class="btn btn-light" type="button">Admin</button>
         <button id="logoutButton" class="btn btn-light is-hidden" type="button">Cerrar sesión</button>
