@@ -62,6 +62,8 @@ const CONFIG = {
 
     // Descripción de diccionario de esquemas dinámicos para formularios
     const EDIT_CONFIG = {
+      // Descripción tabla proceso_curricular
+
       processes: {
         table: TABLES.processes,
         label: 'expediente',
@@ -75,6 +77,8 @@ const CONFIG = {
           { name: 'motivo_revision', label: 'Motivo de revisión', type: 'textarea' }
         ]
       },
+      // Descripción tabla historial_fase
+
       history: {
         table: TABLES.history,
         label: 'fase',
@@ -88,6 +92,8 @@ const CONFIG = {
           { name: 'observaciones_revision', label: 'Observaciones', type: 'textarea' }
         ]
       },
+      // Descripción tabla evidencia_documental
+
       evidence: {
         table: TABLES.evidence,
         label: 'evidencia',
@@ -99,6 +105,8 @@ const CONFIG = {
           { name: 'fecha_carga', label: 'Fecha carga', type: 'datetime-local' }
         ]
       },
+      // Descripción tabla plan_estudio
+
       plans: {
         table: TABLES.plans,
         label: 'plan de estudio',
@@ -110,7 +118,7 @@ const CONFIG = {
           { name: 'estado', label: 'Estado', type: 'select-static', options: ['Historico', 'Vigente', 'En Revision', 'Propuesta'] }
         ]
       },
-      // Descripción de tabla de cursos
+      // Descripción tabla curso
     courses: {
         table: TABLES.courses,
         label: 'curso',
@@ -125,6 +133,8 @@ const CONFIG = {
           { name: 'modalidad', label: 'Modalidad', type: 'select-static', options: ['Presencial', 'Semipresencial', 'Virtual'] }
         ]
       },
+      // Descripción tabla respuesta_encuesta
+
       answers: {
         table: TABLES.answers,
         label: 'respuesta de encuesta',
@@ -137,6 +147,8 @@ const CONFIG = {
           { name: 'fecha_respuesta', label: 'Fecha respuesta', type: 'datetime-local' }
         ]
       },
+      // Descripción tabla prerrequisito
+
       prerequisites: {
         table: TABLES.prerequisites,
         label: 'prerrequisito',
