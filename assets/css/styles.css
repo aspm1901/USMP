@@ -2863,7 +2863,7 @@
     }
 
     .malla-toolbar {
-      display: none;
+      display: flex;
       flex-wrap: wrap;
       gap: 8px;
       padding: 14px;
@@ -2872,8 +2872,12 @@
       background: #fff8f8;
     }
 
-    .admin-mode .malla-toolbar.is-editable {
-      display: flex;
+    .malla-toolbar > button:not(#mallaExportPdf) {
+      display: none;
+    }
+
+    .admin-mode .malla-toolbar.is-editable > button {
+      display: inline-flex;
     }
 
     .malla-stats {
