@@ -1747,7 +1747,9 @@ const CONFIG = {
                   ${entry
                     ? `<button class="mini-button" type="button" data-admin-action="edit-history" data-id="${entry.id_historial}">Editar fase</button>
                        <button class="mini-button danger" type="button" data-admin-action="delete-history" data-id="${entry.id_historial}">Eliminar fase</button>`
-                    : `<button class="mini-button primary" type="button" data-admin-action="add-history" data-process-id="${item.id}" data-step-id="${step.id_paso}">Registrar fase</button>`}
+                    : (step.numero_paso <= (item.currentStep || 0) + 1
+                         ? `<button class="mini-button primary" type="button" data-admin-action="add-history" data-process-id="${item.id}" data-step-id="${step.id_paso}">Registrar fase</button>`
+                         : '')}
                 </div>
               </div>
       `;
