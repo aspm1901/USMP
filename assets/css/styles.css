@@ -2872,11 +2872,15 @@
       background: #fff8f8;
     }
 
-    .malla-toolbar > button:not(#mallaExportPdf) {
+    .malla-toolbar > .mini-button {
       display: none;
     }
 
-    .admin-mode .malla-toolbar.is-editable > button {
+    .malla-toolbar > #mallaExportPdf {
+      display: inline-flex;
+    }
+
+    .admin-mode .malla-toolbar.is-editable > .mini-button {
       display: inline-flex;
     }
 
