@@ -3449,6 +3449,10 @@ const CONFIG = {
       empty.classList.add('is-hidden');
       container.style.display = '';
 
+      const proc = state.processes.find((p) => p.id === state.mallaProcessId);
+      const isNewPlan = proc && proc.newPlan && String(planId) === String(proc.newPlan.id_plan);
+      state.mallaEditable = proc ? proc.currentStep >= 3 && proc.currentStep <= 6 && state.isAdmin && isNewPlan : false;
+
       if (state.mallaEditable) {
         toolbar.classList.add('is-editable');
         banner.classList.add('is-hidden');
