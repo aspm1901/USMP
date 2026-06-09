@@ -3710,3 +3710,217 @@ body.dark-theme .pagination {
 body.dark-theme {
   background: #0f172a !important;
 }
+
+/* =========================================================
+   EXTENDED DARK MODE - FIXING REMAINING WHITE CARDS
+   ========================================================= */
+
+/* Admin Section */
+body.dark-theme .admin-section-card,
+body.dark-theme .admin-action-card,
+body.dark-theme .admin-stat-card,
+body.dark-theme .survey-qr-card,
+body.dark-theme .priority-card,
+body.dark-theme .priority-item,
+body.dark-theme .score-card,
+body.dark-theme .feedback-summary-list,
+body.dark-theme .feedback-matrix-row,
+body.dark-theme .chart-panel,
+body.dark-theme .chart-panel-wide,
+body.dark-theme .insight-card {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4) !important;
+}
+
+body.dark-theme .priority-danger {
+  background-color: rgba(185, 28, 28, 0.15) !important;
+  border-color: rgba(185, 28, 28, 0.4) !important;
+}
+
+body.dark-theme .priority-warning {
+  background-color: rgba(217, 119, 6, 0.15) !important;
+  border-color: rgba(217, 119, 6, 0.4) !important;
+}
+
+body.dark-theme .admin-action-card p,
+body.dark-theme .priority-item p,
+body.dark-theme .admin-stat-card p,
+body.dark-theme .survey-qr-card p {
+  color: #94a3b8 !important;
+}
+
+body.dark-theme .admin-action-card strong,
+body.dark-theme .priority-item strong,
+body.dark-theme .admin-stat-card strong,
+body.dark-theme .survey-qr-card strong {
+  color: #f8fafc !important;
+}
+
+body.dark-theme .priority-item span,
+body.dark-theme .priority-item small {
+  color: #94a3b8 !important;
+}
+
+body.dark-theme .admin-section-header h3,
+body.dark-theme .priority-card-header h3 {
+  color: #f8fafc !important;
+}
+
+body.dark-theme .admin-section-header p,
+body.dark-theme .priority-card-header p {
+  color: #94a3b8 !important;
+}
+
+/* Tables and Modals */
+body.dark-theme .table-wrap,
+body.dark-theme table,
+body.dark-theme th,
+body.dark-theme td,
+body.dark-theme .modal-panel {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+body.dark-theme th {
+  background-color: #0f172a !important;
+  color: #94a3b8 !important;
+  border-bottom: 2px solid #334155 !important;
+}
+
+body.dark-theme tr:hover td {
+  background-color: rgba(56, 189, 248, 0.08) !important;
+}
+
+body.dark-theme .course-card {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Light Buttons fallback */
+body.dark-theme .btn-light,
+body.dark-theme .mini-button {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+body.dark-theme .btn-light:hover,
+body.dark-theme .mini-button:hover {
+  background-color: rgba(56, 189, 248, 0.15) !important;
+  border-color: #38bdf8 !important;
+}
+
+/* Pagination Note */
+body.dark-theme .pagination-note {
+  color: #94a3b8 !important;
+}
+
+/* =========================================================
+   TOAST & CONFIRM MODAL STYLES
+   ========================================================= */
+
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: var(--surface);
+  color: var(--text-main);
+  padding: 16px 20px;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+  border-left: 4px solid var(--accent);
+  transform: translateX(120%);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  pointer-events: auto;
+  max-width: 350px;
+}
+
+.toast.toast-show {
+  transform: translateX(0);
+}
+
+.toast-error { border-left-color: #ef4444; }
+.toast-warning { border-left-color: #f59e0b; }
+.toast-success { border-left-color: #10b981; }
+
+.toast-icon {
+  font-size: 1.2rem;
+}
+
+.toast-message {
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.toast-confirm-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+}
+
+.toast-confirm-overlay.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.confirm-panel {
+  background: var(--surface);
+  padding: 32px;
+  border-radius: 16px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+  transform: scale(0.95);
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border: 1px solid var(--border);
+}
+
+.toast-confirm-overlay.is-visible .confirm-panel {
+  transform: scale(1);
+}
+
+.confirm-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.confirm-message {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-main);
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.confirm-actions button {
+  min-width: 120px;
+}

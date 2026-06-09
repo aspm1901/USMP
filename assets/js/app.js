@@ -1,3 +1,4 @@
+// [EXPO_LLAVES_SUPABASE] Aquí están las credenciales y la ANON KEY de Supabase.
 const CONFIG = {
       SUPABASE_URL: 'https://syanolcxbjarcmpxkmqf.supabase.co',
       SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5YW5vbGN4YmphcmNtcHhrbXFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MzA2OTYsImV4cCI6MjA5NDQwNjY5Nn0.bV93pPhfVpBGBRpodmttKuHf57ty7kFE0gUkB4jnwsQ'
@@ -69,7 +70,7 @@ const CONFIG = {
           { name: 'id_plan_nuevo', label: 'Plan nuevo', type: 'select', source: 'plans', value: 'id_plan', text: planLabel },
           { name: 'id_periodo', label: 'Periodo', type: 'select', source: 'periods', value: 'id_periodo', text: (item) => item.nombre_periodo },
           { name: 'fecha_inicio', label: 'Fecha inicio', type: 'date' },
-          { name: 'estado_proceso', label: 'Estado', type: 'select-static', options: ['En Curso', 'Observado', 'Finalizado'] },
+
           { name: 'motivo_revision', label: 'Motivo de revisión', type: 'textarea' }
         ]
       },
@@ -153,6 +154,7 @@ const CONFIG = {
       showConnectionMessage('Cargando información desde Supabase...');
 
       try {
+        // [EXPO_CONEXION_BD] Inicialización de la conexión con la base de datos (Backend).
         state.client = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
         await syncSession();
         await refreshData();
@@ -176,6 +178,7 @@ const CONFIG = {
       updateSessionUI();
     }
 
+    // [EXPO_CONSULTAS_SELECT] Extracción masiva. Equivale a sentencias "SELECT * FROM tabla".
     async function refreshData() {
       const previousSelectedId = state.selectedId;
       state.data = await loadReadOnlyData(state.client);
@@ -3054,6 +3057,7 @@ const CONFIG = {
       `;
     }
 
+    // [EXPO_CONSULTAS_INSERT_UPDATE] Motor de guardado. Equivale a sentencias "INSERT" o "UPDATE" usando Query Builder.
     async function saveRecord(tableKey, original, formData) {
       const config = EDIT_CONFIG[tableKey];
       const payload = {};
@@ -3420,7 +3424,7 @@ const CONFIG = {
        MALLA CURRICULAR — Fase 1
        ================================================================ */
 
-    const MALLA_DESIGN_STEP = 6;
+    const MALLA_DESIGN_STEP = 3;
 
     function renderMalla() {
       populateMallaProcessSelector();
@@ -3451,7 +3455,7 @@ const CONFIG = {
         banner.classList.remove('is-hidden');
       }
 
-      const courses = state.data.courses.filter((c) => c.id_plan === planId);
+      const courses = state.data.courses.filter((c) => c.id_plan === planId && !c.nombre.toLowerCase().includes('electiv'));
       const cycles = state.data.cycles.slice().sort((a, b) => a.numero_ciclo - b.numero_ciclo);
       const areas = mapBy(state.data.areas, 'id_area');
 
@@ -3460,20 +3464,50 @@ const CONFIG = {
       renderMallaLegend(courses, areas);
     }
 
+    
+    function populateMallaCareerSelector() {
+      const select = document.getElementById('mallaCareer');
+      if (!select) return;
+      const careers = unique((state.processes || []).map(p => p.evaluatedPlan?.id_carrera || p.newPlan?.id_carrera));
+      const currentVal = state.mallaCareerId || '';
+      let html = '<option value="">Todas las carreras</option>';
+      careers.forEach(id => {
+        if (!id) return;
+        const careerName = state.data.careers?.find(c => c.id_carrera === id)?.nombre_carrera || 'Carrera ' + id;
+        html += `<option value="${id}" ${id === currentVal ? 'selected' : ''}>${escapeHtml(careerName)}</option>`;
+      });
+      select.innerHTML = html;
+      if (!select.dataset.bound) {
+        select.addEventListener('change', (e) => {
+          state.mallaCareerId = e.target.value ? Number(e.target.value) : null;
+          state.mallaProcessId = null;
+          state.mallaPlanId = null;
+          populateMallaProcessSelector();
+          onMallaProcessChange();
+        });
+        select.dataset.bound = 'true';
+      }
+    }
+
     function populateMallaProcessSelector() {
+      populateMallaCareerSelector();
       const select = document.getElementById('mallaProcess');
-      const processes = state.processes || [];
+      let processes = state.processes || [];
+      if (state.mallaCareerId) {
+         processes = processes.filter(p => (p.evaluatedPlan?.id_carrera === state.mallaCareerId) || (p.newPlan?.id_carrera === state.mallaCareerId));
+      }
       const currentVal = state.mallaProcessId;
 
-      const designProcs = processes.filter((p) => p.currentStep >= MALLA_DESIGN_STEP);
-      const otherProcs = processes.filter((p) => p.currentStep < MALLA_DESIGN_STEP);
+
+      const designProcs = processes.filter((p) => p.currentStep >= 3 && p.currentStep <= 6);
+      const otherProcs = processes.filter((p) => p.currentStep > 6);
 
       let html = '<option value="">Selecciona un proceso</option>';
       if (designProcs.length) {
-        html += '<optgroup label="En diseño curricular (Paso 6+)">';
+        html += '<optgroup label="En diseño curricular (Pasos 3 al 6)">';
         designProcs.forEach((p) => {
           const career = p.evaluatedPlan?.nombre_carrera || p.newPlan?.nombre_carrera || 'Sin carrera';
-          html += `<option value="${p.id}" ${p.id === currentVal ? 'selected' : ''}>${escapeHtml(career)} — ${escapeHtml(p.status)}</option>`;
+          const periodName = p.period ? p.period.nombre_periodo : ''; const labelPrefix = state.mallaCareerId ? 'Proceso ' : escapeHtml(career) + ' '; html += `<option value="${p.id}" ${p.id === currentVal ? 'selected' : ''}>${labelPrefix}${periodName ? '(' + periodName + ')' : ''} — ${escapeHtml(p.status)}</option>`;
         });
         html += '</optgroup>';
       }
@@ -3481,7 +3515,7 @@ const CONFIG = {
         html += '<optgroup label="Otros procesos (solo lectura)">';
         otherProcs.forEach((p) => {
           const career = p.evaluatedPlan?.nombre_carrera || p.newPlan?.nombre_carrera || 'Sin carrera';
-          html += `<option value="${p.id}" ${p.id === currentVal ? 'selected' : ''}>${escapeHtml(career)} — ${escapeHtml(p.status)}</option>`;
+          const periodName = p.period ? p.period.nombre_periodo : ''; const labelPrefix = state.mallaCareerId ? 'Proceso ' : escapeHtml(career) + ' '; html += `<option value="${p.id}" ${p.id === currentVal ? 'selected' : ''}>${labelPrefix}${periodName ? '(' + periodName + ')' : ''} — ${escapeHtml(p.status)}</option>`;
         });
         html += '</optgroup>';
       }
@@ -3495,7 +3529,7 @@ const CONFIG = {
       state.mallaSelectedCourseId = null;
 
       const proc = state.processes.find((p) => p.id === state.mallaProcessId);
-      state.mallaEditable = proc ? proc.currentStep >= MALLA_DESIGN_STEP && state.isAdmin : false;
+      state.mallaEditable = proc ? proc.currentStep >= 3 && proc.currentStep <= 6 && state.isAdmin : false;
 
       const planSelect = document.getElementById('mallaPlan');
       let html = '<option value="">Selecciona un plan</option>';
@@ -3518,7 +3552,6 @@ const CONFIG = {
       state.mallaSelectedCourseId = null;
       renderMalla();
     }
-
     function renderMallaStats(courses, cycles) {
       const stats = document.getElementById('mallaStats');
       const totalCredits = courses.reduce((s, c) => s + (c.creditos || 0), 0);
@@ -3532,21 +3565,15 @@ const CONFIG = {
       `;
     }
 
+    // [EXPO_GRAFOS_MALLA] Lógica relacional recursiva para calcular las flechas y la topología de Prerrequisitos.
     function renderMallaGrid(courses, cycles, areas) {
       const grid = document.getElementById('mallaGrid');
       clearMallaArrows();
-      if (!courses.length) {
-        clearMallaCourseDetail();
-        grid.innerHTML = '<div class="empty" style="grid-column:1/-1">No hay cursos registrados para este plan. Usa el botón "+ Agregar curso" para comenzar a diseñar la malla.</div>';
-        grid.style.gridTemplateColumns = '1fr';
-        return;
-      }
 
-      const usedCycleIds = new Set(courses.map((c) => c.id_ciclo));
-      const activeCycles = cycles.filter((cy) => usedCycleIds.has(cy.id_ciclo));
+      const activeCycles = cycles; // SIEMPRE MANTENER LOS 10 CICLOS FIJOS
       if (!activeCycles.length) {
         clearMallaCourseDetail();
-        grid.innerHTML = '<div class="empty" style="grid-column:1/-1">Los cursos no tienen ciclo asignado.</div>';
+        grid.innerHTML = '<div class="empty" style="grid-column:1/-1">No hay ciclos configurados en la BD.</div>';
         return;
       }
 
