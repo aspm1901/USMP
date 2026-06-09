@@ -60,6 +60,7 @@ const CONFIG = {
       mallaSelectedCourseId: null
     };
 
+    // Descripción de diccionario de esquemas dinámicos para formularios
     const EDIT_CONFIG = {
       processes: {
         table: TABLES.processes,
@@ -109,7 +110,8 @@ const CONFIG = {
           { name: 'estado', label: 'Estado', type: 'select-static', options: ['Historico', 'Vigente', 'En Revision', 'Propuesta'] }
         ]
       },
-      courses: {
+      // Descripción de tabla de cursos
+    courses: {
         table: TABLES.courses,
         label: 'curso',
         pk: 'id_curso',
